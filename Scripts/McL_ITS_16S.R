@@ -877,3 +877,4 @@ dist_16s <- vegdist(otu_table(man.16s), method = "bray")
 
 mantel(dist_ITS, dist_16s, method = "spearman", permutations = 9999) # non parametric, they are highly correlated
 
+# test
