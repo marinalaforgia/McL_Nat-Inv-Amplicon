@@ -800,7 +800,7 @@ kable(df_taxa, caption = "Significant Differences between Functional Groups")
 #### Mantel test: PC v 16S ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
 
-man.pc.16s <- subset_samples(ps.16s.nocontrols.rare, !(is.na(PC.F)))
+man.pc.16s <- subset_samples(ps.16s.nocontrols.rare, !(is.na(PC.F))) # this test includes forbs in competition
 
 dist_mic <- vegdist(otu_table(man.pc.16s), method = "bray") # establishes Bray-Curtis dissimilarity matrix of 16S community
 
@@ -850,7 +850,7 @@ dist_b <- vegdist(sample_data(man.f.16s)[,30], method = "euclidean")
 
 mantel(dist_micf, dist_b, method = "spearman", permutations = 9999) #significant if p < 0.05 (or your p value of choice) # forb weight (alone or in comp) not correlated with community 
 
-# honestly cant tell if these really make sense, can we say that plants with similar weights will have more similar communities? 
+# honestly cant tell if these really make sense, can we say that plants with similar weights will have more similar communities? This would make more sense to do it with carbon:nitrogen ratio
 
 #### Mantel test: grass weight v 16S ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
@@ -866,6 +866,7 @@ dist_b <- vegdist(sample_data(man.g.16s)[,31], method = "euclidean")
 mantel(dist_micg, dist_b, method = "spearman", permutations = 9999) #significant if p < 0.05 (or your p value of choice) # grass weight (alone or in comp) IS correlated with community
 
 #### Mantel test: Biomass v ITS ####
+# decided not to do this because I'm not sure it really makes sense
 
 #### Mantel test: 16S v ITS ####
 man.ITS <- subset_samples(ps.ITS.nocontrols.rare, SampleID_Fix != "GLM-0116")
