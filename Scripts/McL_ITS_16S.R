@@ -3,7 +3,7 @@ rm(list=ls())
 #### Setup ####
 
 #setwd("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon") # Marina's Working Directory
-#setwd("") # Cassie's Working Directory
+#setwd("/Users/Cassie/Documents/Dropbox/Greenhouse_ITS/McL_Nat-Inv-Amplicon") # Cassie's Working Directory
 
 ### Load Libraries ###
 
