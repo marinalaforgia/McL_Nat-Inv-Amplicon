@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 
 .Rproj.user/
 
@@ -12,3 +13,12 @@ McL_Nat-Inv-Amplicon.Rproj
 .RData
 
 .Ruserdata
+=======
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+Data/*
+WIP_scripts/*
+McL_Nat-Inv-Amplicon.Rproj
+>>>>>>> Stashed changes
