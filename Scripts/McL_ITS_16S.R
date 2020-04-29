@@ -44,27 +44,27 @@ library(patchwork)
 ### Not rarefied data ###
 
 ## 16S ##
-ps.16s.nocontrols <- readRDS("Data/") # 16s data
-ps.16s.nocontrols <- readRDS("Data/") #16s data, Cassie's path
+ps.16s.nocontrols <- readRDS("Data/16S/Intermediates/ps-nocontrols-unrare.RDS") # 16s data, Marina's path
+#ps.16s.nocontrols <- readRDS("Data/") #16s data, Cassie's path
 
 
 ## ITS ##
 ps.ITS.nocontrols <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data
-ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data, Cassie's path
+#ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data, Cassie's path
 
 
-#Issue - should maybe now consider rarefying after fixing mapping data and taxonomy.....
+#Issue - should maybe now consider rarefying after fixing mapping data and taxonomy..... this mapping issue is just making sure the sample names match up, the rarefying should be fine
 
 ### Rarefied Data ###
 
 ## 16S ##
 ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
-ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
+#ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
 
 
 ## ITS ##
 ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
-ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
+#ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
 
 
 # Metadata mapping file including biomass and traits (version4)
@@ -106,9 +106,29 @@ rm(missing, missing2, df.16s, df.ITS, i)
 
 ## 16S ##
 
-# insert 16S here #
+df.16s.tax <- data.frame(tax_table(ps.16s.nocontrols))
 
+df.16s.tax %<>% 
+  mutate(Phylum = fct_explicit_na(Phylum, na_level = "p__Unclassified"), 
+         Class = fct_explicit_na(Class, na_level = "c__Unclassified"), 
+         Order = fct_explicit_na(Order, na_level = "o__Unclassified"), 
+         Family = fct_explicit_na(Family, na_level = "f__Unclassified"), 
+         Genus = fct_explicit_na(Genus, na_level = "g__Unclassified"), 
+         Species = fct_explicit_na(Species, na_level = "s__Unclassified"))
 
+tax.list <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
+tax.header <- c(Phylum = "p__", Class = "c__", Order = "o__", 
+                Family = "f__", Genus = "g__", Species = "s__")
+
+for (i in tax.list) {
+  names <- sapply(strsplit(as.character(df.16s.tax[[i]]), as.character(tax.header[[i]])), `[`, 2)
+  df.16s.tax[[i]] <- names 
+}
+
+row.names(df.16s.tax) <- row.names(tax_table(ps.16s.nocontrols))
+tax.16s <- as.matrix(df.16s.tax)
+
+tax_table(ps.16s.nocontrols) <- tax.16s
 
 
 ## ITS ##
@@ -136,11 +156,6 @@ row.names(df.ITS.tax) <- row.names(tax_table(ps.ITS.nocontrols))
 ITS.tax <- as.matrix(df.ITS.tax)
 
 tax_table(ps.ITS.nocontrols) <- ITS.tax
-
-
-
-
-
 
 #### Prep Datasets ####
 
@@ -1081,7 +1096,7 @@ BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
 elbow <- which.max(BC_ranked$fo_diffs)
 
-ggplot(BC_ranked[1:250,], aes(x=factor(BC_ranked$rank[1:250], levels=BC_ranked$rank[1:250]))) +
+(elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x=factor(BC_ranked$rank[1:250], levels=BC_ranked$rank[1:250]))) +
   geom_point(aes(y=proportionBC)) +
   theme_classic() + 
   theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
@@ -1089,7 +1104,7 @@ ggplot(BC_ranked[1:250,], aes(x=factor(BC_ranked$rank[1:250], levels=BC_ranked$r
   geom_vline(xintercept=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])), lty=3, col='blue', cex=.5) +
   labs(x='ranked OTUs',y='Bray-Curtis similarity') +
   annotate(geom="text", x=elbow+10, y=.15, label=paste("Elbow method"," (",elbow,")", sep=''), color="red")+    
-  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue")
+  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue"))
 
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
@@ -1108,13 +1123,13 @@ below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness
 ap = obs.np$freq > (obs.np$pred.upr)
 bp = obs.np$freq < (obs.np$pred.lwr)
 
-ggplot() +
+(core.all.p <- ggplot() +
   geom_point(data=occ_abun[occ_abun$fill=='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='white', alpha=.2)+
   geom_point(data=occ_abun[occ_abun$fill!='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='blue', size=1.8) +
   geom_line(color='black', data=obs.np, size=1, aes(y=obs.np$freq.pred, x=log10(obs.np$p)), alpha=.25) +
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.upr, x=log10(obs.np$p)), alpha=.25)+
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.lwr, x=log10(obs.np$p)), alpha=.25)+
-  labs(x="log10(mean relative abundance)", y="Occupancy")
+  labs(x="log10(mean relative abundance)", y="Occupancy"))
 
 core <- occ_abun$otu[occ_abun$fill == 'core']
 
@@ -1135,12 +1150,12 @@ plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:205]) # 1: # OTUs bef
 #plotDF$group <- 1
 #plotDF$group[plotDF$otu %in% otu_ranked$otu[87:205]] <- 2 # where did 87 come from? I dont think this is needed
 
-ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
+(all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
   geom_bar(stat = 'identity', position = 'dodge') +
   coord_flip() +
   scale_x_discrete(limits = rev(levels(plotDF$otu %in% core))) +
   theme(axis.text = element_text(size=6)) +
-  labs(x='Ranked OTUs', y='Occupancy by site')
+  labs(x='Ranked OTUs', y='Occupancy by site'))
 
 # ok now what if I wanted to look at the core by treatment? do I start way back and break it out that way?
 
@@ -1242,7 +1257,7 @@ BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
 elbow <- which.max(BC_ranked$fo_diffs)
 
-ggplot(BC_ranked[1:400,], aes(x=factor(BC_ranked$rank[1:400], levels=BC_ranked$rank[1:400]))) +
+(elbow.g.p <- ggplot(BC_ranked[1:400,], aes(x=factor(BC_ranked$rank[1:400], levels=BC_ranked$rank[1:400]))) +
   geom_point(aes(y=proportionBC)) +
   theme_classic() + 
   theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
@@ -1250,7 +1265,7 @@ ggplot(BC_ranked[1:400,], aes(x=factor(BC_ranked$rank[1:400], levels=BC_ranked$r
   geom_vline(xintercept=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])), lty=3, col='blue', cex=.5) +
   labs(x='ranked OTUs',y='Bray-Curtis similarity') +
   annotate(geom="text", x=elbow+10, y=.15, label=paste("Elbow method"," (",elbow,")", sep=''), color="red")+    
-  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue")
+  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue"))
 
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
@@ -1269,13 +1284,13 @@ below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness
 ap = obs.np$freq > (obs.np$pred.upr)
 bp = obs.np$freq < (obs.np$pred.lwr)
 
-ggplot() +
+(core.g.p <- ggplot() +
   geom_point(data=occ_abun[occ_abun$fill=='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='white', alpha=.2)+
   geom_point(data=occ_abun[occ_abun$fill!='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='blue', size=1.8) +
   geom_line(color='black', data=obs.np, size=1, aes(y=obs.np$freq.pred, x=log10(obs.np$p)), alpha=.25) +
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.upr, x=log10(obs.np$p)), alpha=.25)+
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.lwr, x=log10(obs.np$p)), alpha=.25)+
-  labs(x="log10(mean relative abundance)", y="Occupancy")
+  labs(x="log10(mean relative abundance)", y="Occupancy"))
 
 core.g <- occ_abun$otu[occ_abun$fill == 'core'] # 309 in the grass core
 
@@ -1373,7 +1388,7 @@ BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
 elbow <- which.max(BC_ranked$fo_diffs)
 
-ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$rank[1:300]))) +
+(elbow.f.p <- ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$rank[1:300]))) +
   geom_point(aes(y=proportionBC)) +
   theme_classic() + 
   theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
@@ -1381,7 +1396,7 @@ ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$r
   geom_vline(xintercept=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])), lty=3, col='blue', cex=.5) +
   labs(x='ranked OTUs',y='Bray-Curtis similarity') +
   annotate(geom="text", x=elbow+10, y=.15, label=paste("Elbow method"," (",elbow,")", sep=''), color="red")+    
-  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue")
+  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue"))
 
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
@@ -1400,13 +1415,13 @@ below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness
 ap = obs.np$freq > (obs.np$pred.upr)
 bp = obs.np$freq < (obs.np$pred.lwr)
 
-ggplot() +
+(core.f.p <- ggplot() +
   geom_point(data=occ_abun[occ_abun$fill=='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='white', alpha=.2)+
   geom_point(data=occ_abun[occ_abun$fill!='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='blue', size=1.8) +
   geom_line(color='black', data=obs.np, size=1, aes(y=obs.np$freq.pred, x=log10(obs.np$p)), alpha=.25) +
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.upr, x=log10(obs.np$p)), alpha=.25)+
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.lwr, x=log10(obs.np$p)), alpha=.25)+
-  labs(x="log10(mean relative abundance)", y="Occupancy")
+  labs(x="log10(mean relative abundance)", y="Occupancy"))
 
 core.f <- occ_abun$otu[occ_abun$fill == 'core'] # 241 in the forb core
 
@@ -1504,7 +1519,7 @@ BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
 
 elbow <- which.max(BC_ranked$fo_diffs)
 
-ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$rank[1:300]))) +
+(elbow.gf.p <- ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$rank[1:300]))) +
   geom_point(aes(y=proportionBC)) +
   theme_classic() + 
   theme(strip.background = element_blank(),axis.text.x = element_text(size=7, angle=45)) +
@@ -1512,7 +1527,7 @@ ggplot(BC_ranked[1:300,], aes(x=factor(BC_ranked$rank[1:300], levels=BC_ranked$r
   geom_vline(xintercept=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])), lty=3, col='blue', cex=.5) +
   labs(x='ranked OTUs',y='Bray-Curtis similarity') +
   annotate(geom="text", x=elbow+10, y=.15, label=paste("Elbow method"," (",elbow,")", sep=''), color="red")+    
-  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue")
+  annotate(geom="text", x=last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))-4, y=.08, label=paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)])),')',sep=''), color="blue"))
 
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
@@ -1531,13 +1546,13 @@ below.pred=sum(obs.np$freq < (obs.np$pred.lwr), na.rm=TRUE)/sta.np$Richness
 ap = obs.np$freq > (obs.np$pred.upr)
 bp = obs.np$freq < (obs.np$pred.lwr)
 
-ggplot() +
+(core.gf.p <- ggplot() +
   geom_point(data=occ_abun[occ_abun$fill=='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='white', alpha=.2)+
   geom_point(data=occ_abun[occ_abun$fill!='no',], aes(x=log10(otu_rel), y=otu_occ), pch=21, fill='blue', size=1.8) +
   geom_line(color='black', data=obs.np, size=1, aes(y=obs.np$freq.pred, x=log10(obs.np$p)), alpha=.25) +
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.upr, x=log10(obs.np$p)), alpha=.25)+
   geom_line(color='black', lty='twodash', size=1, data=obs.np, aes(y=obs.np$pred.lwr, x=log10(obs.np$p)), alpha=.25)+
-  labs(x="log10(mean relative abundance)", y="Occupancy")
+  labs(x="log10(mean relative abundance)", y="Occupancy"))
 
 core.gf <- occ_abun$otu[occ_abun$fill == 'core'] # 219 in the grass x forb core
 
@@ -1595,8 +1610,71 @@ draw.triple.venn(area1 = 241,                          # Create venn diagram wit
 
 
 
+#### Differential abundance analysis: 16s ####
+## Background soil vs. all other treatments ##
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols, ~ FunGroup)
 
-#### Differential abundance analysis ####
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("SA.BSS", "ST.BSS",
+              "G.BSS", "SAG.BSS", "STG.BSS")
+
+#I think I got them all?
+contrast.list <- list(SA.BSS = c("TreatmentName", "Stress_avoiding_forb", "Background_soil_and_sand_mix"),
+                      ST.BSS = c("TreatmentName", "Stress_tolerant_forb", "Background_soil_and_sand_mix"),
+                      G.BSS = c("TreatmentName", "Invasive_grass", "Background_soil_and_sand_mix"),
+                      SAG.BSS = c("TreatmentName", "SA_forb_X_grass", "Background_soil_and_sand_mix"),
+                      STG.BSS = c("TreatmentName", "ST_forb_X_grass", "Background_soil_and_sand_mix"))
+
+
+plot.name.list <- list(SA.BSS = "SA forb vs. Background soil",
+                       ST.BSS = "ST forb vs. Background soil",
+                       G.BSS = "Invasive grass vs. Background soil",
+                       SAG.BSS = "SA forb X grass vs. Background soil",
+                       STG.BSS = "ST forb X grass vs. Background soil")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.its.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.ITS.nocontrols)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Genus order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot_list[[i]] = p
+}
+
+#plot results
+
+plot_list$SA.BSS + plot_list$ST.BSS + plot_list$G.BSS + plot_list$SAG.BSS + plot_list$STG.BSS
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+write.csv(df.res, "its.ddseq.treatment.csv")
+
+#### Differential abundance analysis: ITS ####
 
 # Write scripts to test for ASVs that differ with:
 # Plant species
@@ -1606,7 +1684,6 @@ draw.triple.venn(area1 = 241,                          # Create venn diagram wit
 # Can be done at ASV level or at higher levels of taxonomic classification (e.g. family, order)
 # Starting with only the ASV level
 
-## ITS ##
 
 # Before continuing make sure to run taxonomy fixing steps at beginning of workflow  (e.g rename NA's & remove prefixes)
 
