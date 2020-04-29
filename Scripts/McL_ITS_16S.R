@@ -48,7 +48,7 @@ ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsrem
 
 # Metadata mapping file including biomass and traits (version4)
 mapping <- read.csv("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv") 
-mapping <- read.csv("/Data/Grassland-Amplicon-Mapping-File4.csv") #Cassie's path
+mapping <- read.csv("Data/Grassland-Amplicon-Mapping-File4.csv") #Cassie's path
 
 #Adding columns to the mapping file
 mapping$FunGroup <- ifelse(mapping$TreatmentName == "Invasive_grass", "Grass", NA)
