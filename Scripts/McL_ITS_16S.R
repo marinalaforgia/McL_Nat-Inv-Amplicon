@@ -45,27 +45,13 @@ library(patchwork)
 
 ## 16S ##
 ps.16s.nocontrols <- readRDS("Data/16S/Intermediates/ps-nocontrols-unrare.RDS") # 16s data, Marina's path
-#ps.16s.nocontrols <- readRDS("Data/") #16s data, Cassie's path
-
+ps.16s.nocontrols <- readRDS("Data/ps-nocontrols-unrare.RDS") #16s data, Cassie's path
+#132 samples
 
 ## ITS ##
 ps.ITS.nocontrols <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data
-#ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data, Cassie's path
-
-
-#Issue - should maybe now consider rarefying after fixing mapping data and taxonomy..... this mapping issue is just making sure the sample names match up, the rarefying should be fine
-
-### Rarefied Data ###
-
-## 16S ##
-ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
-#ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
-
-
-## ITS ##
-ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
-#ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
-
+ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.rds") # ITS data, Cassie's path
+#132 samples
 
 # Metadata mapping file including biomass and traits (version4)
 mapping <- read.csv("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv") 
@@ -78,58 +64,49 @@ mapping[is.na(mapping$FunGroup),]$FunGroup <- "grass_x_forb"
 mapping$FunGroup <- as.factor(mapping$FunGroup)
 
 # 16S mapping file does not match up with the mapping file for the ITS data, adjust here 
-for(i in sample_names(ps.16s.nocontrols.rare)) {
-    sample_names(ps.16s.nocontrols.rare)[which(sample_names(ps.16s.nocontrols.rare) == i)] <- as.character(mapping[mapping$SampleID.16S == i,]$SampleID_Fix)
-  }
+for(i in sample_names(ps.16s.nocontrols)) {
+  sample_names(ps.16s.nocontrols)[which(sample_names(ps.16s.nocontrols) == i)] <- as.character(mapping[mapping$SampleID.16S == i,]$SampleID_Fix)
+}
 
-sample_names(ps.16s.nocontrols.rare)
-sample_names(ps.ITS.nocontrols.rare) # they match up!
+sample_names(ps.16s.nocontrols)
+sample_names(ps.ITS.nocontrols) # they match up!
 
-df.16s <- data.frame(sample_data(ps.16s.nocontrols.rare))
-df.ITS <- data.frame(sample_data(ps.ITS.nocontrols.rare))
+df.16s <- data.frame(sample_data(ps.16s.nocontrols))
+df.ITS <- data.frame(sample_data(ps.ITS.nocontrols))
 
 missing <- df.ITS[!(df.ITS$SampleID_Fix %in% df.16s$SampleID_Fix),]
 missing2 <- df.16s[!(df.16s$SampleID_Fix %in% df.ITS$SampleID_Fix),]
 row.names(mapping) <- mapping$SampleID_Fix
-sample_data(ps.ITS.nocontrols.rare) <- mapping[which(mapping$SampleID_Fix %in% ps.ITS.nocontrols.rare@sam_data$SampleID_Fix),]
-sample_data(ps.ITS.nocontrols.rare) # fixed!
+sample_data(ps.ITS.nocontrols) <- mapping[which(mapping$SampleID_Fix %in% ps.ITS.nocontrols@sam_data$SampleID_Fix),]
+sample_data(ps.ITS.nocontrols) # fixed!
 
-sample_data(ps.16s.nocontrols.rare) <- mapping
+sample_data(ps.16s.nocontrols) <- mapping
 
 rm(missing, missing2, df.16s, df.ITS, i)
 
 
 ### Fix Taxonomy for DESeq analysis later ###
 
-# Rename NA's & remove headers (e.g. p__)
+# Rename NA's & remove prefixes if they exist (e.g. p__)
 # This is important if we want to bind taxonomy to deseq results later
+# 16S dataset has NA's but no prefixes, ITS has both
 
 ## 16S ##
 
 df.16s.tax <- data.frame(tax_table(ps.16s.nocontrols))
 
 df.16s.tax %<>% 
-  mutate(Phylum = fct_explicit_na(Phylum, na_level = "p__Unclassified"), 
-         Class = fct_explicit_na(Class, na_level = "c__Unclassified"), 
-         Order = fct_explicit_na(Order, na_level = "o__Unclassified"), 
-         Family = fct_explicit_na(Family, na_level = "f__Unclassified"), 
-         Genus = fct_explicit_na(Genus, na_level = "g__Unclassified"), 
-         Species = fct_explicit_na(Species, na_level = "s__Unclassified"))
-
-tax.list <- c("Phylum", "Class", "Order", "Family", "Genus", "Species")
-tax.header <- c(Phylum = "p__", Class = "c__", Order = "o__", 
-                Family = "f__", Genus = "g__", Species = "s__")
-
-for (i in tax.list) {
-  names <- sapply(strsplit(as.character(df.16s.tax[[i]]), as.character(tax.header[[i]])), `[`, 2)
-  df.16s.tax[[i]] <- names 
-}
+  mutate(Phylum = fct_explicit_na(Phylum, na_level = "Unclassified"), 
+         Class = fct_explicit_na(Class, na_level = "Unclassified"), 
+         Order = fct_explicit_na(Order, na_level = "Unclassified"), 
+         Family = fct_explicit_na(Family, na_level = "Unclassified"), 
+         Genus = fct_explicit_na(Genus, na_level = "Unclassified"), 
+         Species = fct_explicit_na(Species, na_level = "Unclassified"))
 
 row.names(df.16s.tax) <- row.names(tax_table(ps.16s.nocontrols))
 tax.16s <- as.matrix(df.16s.tax)
 
 tax_table(ps.16s.nocontrols) <- tax.16s
-
 
 ## ITS ##
 
@@ -156,6 +133,28 @@ row.names(df.ITS.tax) <- row.names(tax_table(ps.ITS.nocontrols))
 ITS.tax <- as.matrix(df.ITS.tax)
 
 tax_table(ps.ITS.nocontrols) <- ITS.tax
+
+
+### Rarefied Data ###
+
+## 16S ##
+ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace = FALSE, rngseed = 5311)
+saveRDS(ps.nocontrols.16s.rare9434, "ps-nocontrols-rare9434.RDS")
+
+
+ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
+ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
+
+
+## ITS ##
+ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
+saveRDS(ps.nocontrols.its.rare7557, "greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
+
+
+ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
+ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
+
+
 
 #### Prep Datasets ####
 
@@ -1673,6 +1672,7 @@ names(df.res)[1] <- "Contrast"
 names(df.res)[2] <- "ASV"
 
 write.csv(df.res, "its.ddseq.treatment.csv")
+
 
 #### Differential abundance analysis: ITS ####
 
