@@ -139,18 +139,27 @@ tax_table(ps.ITS.nocontrols) <- ITS.tax
 
 ## 16S ##
 ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace = FALSE, rngseed = 5311)
-saveRDS(ps.nocontrols.16s.rare9434, "ps-nocontrols-rare9434.RDS")
+#saveRDS(ps.nocontrols.16s.rare9434, "Data/ps-nocontrols-rare9434.RDS")
+# 131 samples, lose one sample, GLM-0116
 
+# Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
+#write.csv(t(otu_table(ps.nocontrols.16s.rare9434)), "Data/ps.nocontrols.16s.rare9434.transposed.csv")
 
+# Load 
 ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
 ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
 
 
 ## ITS ##
 ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
-saveRDS(ps.nocontrols.its.rare7557, "greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
+#saveRDS(ps.nocontrols.its.rare7557, "Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
+# 132 samples
+
+# Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
+#write.csv(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.csv")
 
 
+# Load 
 ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
 ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
 
