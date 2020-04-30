@@ -1619,29 +1619,73 @@ draw.triple.venn(area1 = 241,                          # Create venn diagram wit
 
 
 #### Differential abundance analysis: 16s ####
-## Background soil vs. all other treatments ##
-treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols, ~ FunGroup)
+## 16S: Soil v Rhiz  ##
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols, ~ SampleSubType)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts, if needed
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.16s.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+#Bind taxonomy to results
+res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols)[rownames(res.alpha), ], "matrix"))
+
+#tidy results 
+res <- tidy(res.alpha)
+  
+#generate plot of significant ASVs for each contrast
+# Order order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+# Genus order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
+p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle("Plant Rhizosphere vs. Background soil")
+  
+#plot results
+
+p
+
+#tidy results into a table to save
+df.res <- as.data.frame(res)
+names(df.res)[1] <- "ASV"
+
+write.csv(df.res, "Data/16s.ddseq.soilrhiz.csv")
+
+
+## 16S:  G v SA v ST  ##
+ps.16s.nocontrols.nobss <- subset_samples(ps.16s.nocontrols, SampleSubType !="Background_soil_sand_mix")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ TreatmentName)
 
 dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
 
 resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
 
-contrasts = c("SA.BSS", "ST.BSS",
-              "G.BSS", "SAG.BSS", "STG.BSS")
+contrasts = c("SA.G", "ST.G",
+              "SAG.G", "STG.G")
 
-#I think I got them all?
-contrast.list <- list(SA.BSS = c("TreatmentName", "Stress_avoiding_forb", "Background_soil_and_sand_mix"),
-                      ST.BSS = c("TreatmentName", "Stress_tolerant_forb", "Background_soil_and_sand_mix"),
-                      G.BSS = c("TreatmentName", "Invasive_grass", "Background_soil_and_sand_mix"),
-                      SAG.BSS = c("TreatmentName", "SA_forb_X_grass", "Background_soil_and_sand_mix"),
-                      STG.BSS = c("TreatmentName", "ST_forb_X_grass", "Background_soil_and_sand_mix"))
+contrast.list <- list(SA.G = c("TreatmentName", "Stress_avoiding_forb", "Invasive_grass"),
+                      ST.G = c("TreatmentName", "Stress_tolerant_forb", "Invasive_grass"),
+                      SAG.G = c("TreatmentName", "SA_forb_X_grass", "Invasive_grass"),
+                      STG.G = c("TreatmentName", "ST_forb_X_grass", "Invasive_grass"))
 
 
-plot.name.list <- list(SA.BSS = "SA forb vs. Background soil",
-                       ST.BSS = "ST forb vs. Background soil",
-                       G.BSS = "Invasive grass vs. Background soil",
-                       SAG.BSS = "SA forb X grass vs. Background soil",
-                       STG.BSS = "ST forb X grass vs. Background soil")
+plot.name.list <- list(SA.G = "SA forb vs. Grass",
+                       ST.G = "ST forb vs. Grass",
+                       SAG.G = "SA forb X grass vs. Grass",
+                       STG.G = "ST forb X grass vs. Grass")
 
 alpha = 0.01
 res.list <- list()
@@ -1649,11 +1693,11 @@ plot.list <- list()
 
 for(i in contrasts) {
   #get results for each contrast
-  res <- results(dds.its.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
   #filter results by p-value
   res.alpha <- res[which(res$padj < alpha), ]
   #Bind taxonomy to results
-  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.ITS.nocontrols)[rownames(res.alpha), ], "matrix"))
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
   #tidy results 
   res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
   
@@ -1668,19 +1712,176 @@ for(i in contrasts) {
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
     theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot_list[[i]] = p
+  plot.list[[i]] = p
 }
 
 #plot results
 
-plot_list$SA.BSS + plot_list$ST.BSS + plot_list$G.BSS + plot_list$SAG.BSS + plot_list$STG.BSS
+plot.list$SA.G + plot.list$ST.G + plot.list$SAG.G + plot.list$STG.G
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
 names(df.res)[1] <- "Contrast"
 names(df.res)[2] <- "ASV"
 
-write.csv(df.res, "its.ddseq.treatment.csv")
+write.csv(df.res, "Data/16s.ddseq.treatment.csv")
+
+ 
+## 16S: G v F ##
+#make "grass" the result to compare to
+
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.16s.nocontrols.nobss)$FunGroup, "Grass")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("F.G", "FG.G")
+
+contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
+                      FG.G = c("FunGroup", "grass_x_forb", "Grass"))
+
+
+plot.name.list <- list(F.G = "Forb vs. Grass",
+                       FG.G = "Forb x grass vs. Grass")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Genus order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$F.G+ plot.list$FG.G 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+write.csv(df.res, "Data/16s.ddseq.fungroup.csv")
+
+
+#same as above but now with "forb" as the comparison
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.16s.nocontrols.nobss)$FunGroup, "Forb")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("G.F", "FG.F")
+
+contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
+                      FG.F = c("FunGroup", "grass_x_forb", "Forb"))
+
+
+plot.name.list <- list(G.F = "Grass vs. Forb",
+                       FG.F = "Forb x grass vs. Forb")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Genus order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$G.F+ plot.list$FG.F 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+write.csv(df.res, "Data/16s.ddseq.fungroup.v2.csv")
+
+# More ASVs are high abundance in grass x forb vs. forbs alone (vs. grass x forb vs. grasses alone)
+# Does this suggest that forbs shift more than grasses during competion?
+# Or that grasses are stronger drivers of rhizosphere communities?
+
+
+## 16S: Competition ##
+ps.16s.nocontrols.comp <- subset_samples(ps.16s.nocontrols, !(is.na(Competion)))
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ Competion)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.16s.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+# SURPRISE - no differentially abundant ASVs between one vs. two species
+# But we see differences when split by forb / grass / forb x grass
+# maybe this is two high level and the differences are subtle? or single species driven?
+
+# So does this make sense to also do by plant species specifically? 
+# Can certainly do this with the contrasts, not sure if necesary?
+
+
+
+
+
+
+
+
+
 
 
 #### Differential abundance analysis: ITS ####
@@ -1693,9 +1894,7 @@ write.csv(df.res, "its.ddseq.treatment.csv")
 # Can be done at ASV level or at higher levels of taxonomic classification (e.g. family, order)
 # Starting with only the ASV level
 
-
-# Before continuing make sure to run taxonomy fixing steps at beginning of workflow  (e.g rename NA's & remove prefixes)
-
+###### Need to re-do below with updated mapping file information!! #######
 ## Background soil vs. all other treatments ##
 its.treat = phyloseq_to_deseq2(ps.ITS.nocontrols, ~ TreatmentName)
 
@@ -1706,7 +1905,6 @@ resultsNames(dds.its.treat) #gives us comparisons for our contrasts
 contrasts = c("SA.BSS", "ST.BSS",
               "G.BSS", "SAG.BSS", "STG.BSS")
 
-#I think I got them all?
 contrast.list <- list(SA.BSS = c("TreatmentName", "Stress_avoiding_forb", "Background_soil_and_sand_mix"),
                       ST.BSS = c("TreatmentName", "Stress_tolerant_forb", "Background_soil_and_sand_mix"),
                       G.BSS = c("TreatmentName", "Invasive_grass", "Background_soil_and_sand_mix"),
@@ -1745,19 +1943,19 @@ for(i in contrasts) {
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
     theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot_list[[i]] = p
+  plot.list[[i]] = p
 }
 
 #plot results
 
-plot_list$SA.BSS + plot_list$ST.BSS + plot_list$G.BSS + plot_list$SAG.BSS + plot_list$STG.BSS
+plot.list$SA.BSS + plot.list$ST.BSS + plot.list$G.BSS + plot.list$SAG.BSS + plot.list$STG.BSS
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
 names(df.res)[1] <- "Contrast"
 names(df.res)[2] <- "ASV"
 
-write.csv(df.res, "its.ddseq.treatment.csv")
+write.csv(df.res, "Data/its.ddseq.treatment.csv")
 
 
 
