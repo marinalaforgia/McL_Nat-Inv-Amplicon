@@ -145,6 +145,10 @@ ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
 #write.csv(t(otu_table(ps.nocontrols.16s.rare9434)), "Data/ps.nocontrols.16s.rare9434.transposed.csv")
 
+#Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
+#write.csv(otu_table(ps.nocontrols.16s.rare9434), "Data/ps.nocontrols.16s.rare9434.csv")
+#write.csv(sample_data(ps.nocontrols.16s.rare9434), "Data/ps.nocontrols.16s.rare9434.mappingdata.csv")
+
 # Load 
 ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
 ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
@@ -157,6 +161,10 @@ ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
 #write.csv(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.csv")
+
+#Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
+#write.csv(otu_table(ps.nocontrols.its.rare7557), "Data/ps.nocontrols.its.rare7557.csv")
+#write.csv(sample_data(ps.nocontrols.its.rare7557), "Data/ps.nocontrols.its.rare7557.mappingdata.csv")
 
 
 # Load 
