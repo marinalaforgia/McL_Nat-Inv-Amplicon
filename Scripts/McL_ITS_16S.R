@@ -143,7 +143,7 @@ ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace
 # 131 samples, lose one sample, GLM-0116
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
-#write.csv(t(otu_table(ps.nocontrols.16s.rare9434)), "Data/ps.nocontrols.16s.rare9434.transposed.csv")
+#write.table(t(otu_table(ps.nocontrols.16s.rare9434)), "Data/ps.nocontrols.16s.rare9434.transposed.txt", sep = "\t")
 
 #Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
 #write.csv(otu_table(ps.nocontrols.16s.rare9434), "Data/ps.nocontrols.16s.rare9434.csv")
@@ -160,7 +160,9 @@ ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace
 # 132 samples
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
-#write.csv(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.csv")
+#\write.table(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.txt", sep = "\t")
+
+
 
 #Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
 #write.csv(otu_table(ps.nocontrols.its.rare7557), "Data/ps.nocontrols.its.rare7557.csv")
@@ -1969,3 +1971,246 @@ write.csv(df.res, "Data/its.ddseq.treatment.csv")
 
 # Next step, repeat by choosing a "new" control group to compare to (instead of background soil) & by using other categories
 #sample_data(ps.ITS.nocontrols)$TreatmentName <- relevel(sample_data(ps.ITS.nocontrols)$TreatmentName, "Grass")
+
+
+
+
+
+#### SourceTracker #####
+#Attempting to use sourcetracker to assess % of community originating from forb / grass during competion
+
+#### SourceTracker: 16S ####
+
+#Load 16s metadata
+metadata_16s <- read.csv('Data/ps.nocontrols.16s.rare9434.mappingdata.csv', row.names = 1)
+
+#Load 16s ASVs
+asvs_16s <- read.csv('Data/ps.nocontrols.16s.rare9434.csv', row.names = 1)
+
+# Manipulate metadata to add Env and SourceSink columns
+#Add "Env" column, this could be rhiz-vs.-background soil or specific treatments (e.g. pairwise plants)
+
+#Env column for treatment
+#Here we will use "background soil" as the source
+metadata_16s  %<>% 
+  mutate(Env = fct_explicit_na(TreatmentName, "Background_soil")) 
+
+#Here we are using 'FunGroup' for Env  
+#Here we will use "background soil", "forb" and "grass" as sources
+metadata_16s  %<>% 
+  mutate(Env.v2 = ifelse(Env == "Background_soil" & FunGroup == "grass_x_forb", "Background_soil", as.character(FunGroup)))
+
+#Add source-sink columns for each Env 
+metadata_16s %<>%
+  mutate (SourceSink = ifelse(Env == "Background_soil", "source", "sink"),
+          SourceSink.v2 = ifelse(Env.v2 =="Background_soil" | Env.v2 == "Forb" | Env.v2 == "Grass", "source", "sink"))
+
+#fix rownames
+row.names(metadata_16s) <- metadata_16s$SampleID_Fix
+
+# extract only those samples in common between the two tables 
+# note, since we ported from phyloseq both the mapping data and the asvs
+# this should always have teh same number of samples! 
+# but let's just check anyway
+common.sample.ids_16s <- intersect(rownames(metadata_16s), rownames(asvs_16s))
+asvs_16s <- asvs_16s[common.sample.ids_16s,]
+metadata_16s <- metadata_16s[common.sample.ids_16s,]
+# double-check that the mapping file and otu table
+# had overlapping samples
+if(length(common.sample.ids_16s) <= 1) {
+  message <- paste(sprintf('Error: there are %d sample ids in common '),
+                   'between the metadata file and data table')
+  stop(message)
+}
+
+
+
+## Run SourceTracker on 'Treatment' ##
+
+# extract the source environments and source/sink indices
+train.ix <- which(metadata_16s$SourceSink=='source')
+test.ix <- which(metadata_16s$SourceSink=='sink')
+envs <- metadata_16s$Env
+if(is.element('Description',colnames(metadata_16s))) desc <- metadata_16s$Description
+
+
+# load SourceTracker package
+source('Scripts/SourceTracker.r')
+
+
+## Couldn't get the tuning to work so skipped ##
+# tune the alpha values using cross-validation (this is slow!)
+#tune.results <- tune.st(asvs_16s[train.ix,], envs[train.ix])
+#alpha1 <- tune.results$best.alpha1
+# alpha2 <- tune.results$best.alpha2
+# note: to skip tuning, run this instead:
+alpha1 <- alpha2 <- 0.001
+
+# train SourceTracker object on training data
+st <- sourcetracker(asvs_16s[train.ix,], envs[train.ix])
+
+# the next command was too slow to finish running, even overnight on Cassie's old computer!
+# However, it looked like it was working
+# Results seemed to be 60% ASVs sourced from background soil, 40% from 'unknown' source
+# Maybe Marina can try running??? Or Cassie can put the data on the cluster!
+
+# Estimate source proportions in test data
+results <- predict(st,asvs_16s[test.ix,], alpha1=alpha1, alpha2=alpha2)
+
+# Estimate leave-one-out source proportions in training data 
+results.train <- predict(st, alpha1=alpha1, alpha2=alpha2)
+
+# plot results
+labels <- sprintf('%s %s', envs,desc)
+plot(results, labels[test.ix], type='pie')
+
+# other plotting functions
+# plot(results, labels[test.ix], type='bar')
+# plot(results, labels[test.ix], type='dist')
+# plot(results.train, labels[train.ix], type='pie')
+# plot(results.train, labels[train.ix], type='bar')
+# plot(results.train, labels[train.ix], type='dist')
+
+# plot results with legend
+# plot(results, labels[test.ix], type='pie', include.legend=TRUE, env.colors=c('#47697E','#5B7444','#CC6666','#79BEDB','#885588'))
+
+
+## Run SourceTracker on 'FunGroup' ##
+
+# extract the source environments and source/sink indices
+train.ix.fg <- which(metadata_16s$SourceSink.v2=='source')
+test.ix.fg <- which(metadata_16s$SourceSink.v2=='sink')
+envs.fg <- metadata_16s$Env.v2
+if(is.element('Description',colnames(metadata_16s))) desc <- metadata_16s$Description
+
+## Couldn't get the tuning to work above so skipped ##
+alpha1 <- alpha2 <- 0.001
+
+# train SourceTracker object on training data
+st.fg <- sourcetracker(asvs_16s[train.ix.fg,], envs.fg[train.ix.fg])
+
+
+# the next command was too slow to finish running, even overnight on Cassie's old computer!
+# However, it looked like it was working
+# Results seemed to be: 13% from background, 48% from Forb, 30% from grass, 9% unknown
+# INTERESTING!
+
+# Estimate source proportions in test data
+results.fg <- predict(st.fg,asvs_16s[test.ix.fg,], alpha1=alpha1, alpha2=alpha2)
+
+# Estimate leave-one-out source proportions in training data 
+results.train.fg <- predict(st.fg, alpha1=alpha1, alpha2=alpha2)
+
+# plot results
+labels.fg <- sprintf('%s %s', envs.fg,desc)
+plot(results.fg, labels.fg[test.ix.fg], type='pie')
+
+
+
+
+#### Sourcetracker: ITS ####
+
+#Load ITS metadata
+metadata_its <- read.csv('Data/ps.nocontrols.its.rare7557.mappingdata.csv', row.names = 1)
+
+#Load ITS ASVs
+asvs_its <- read.csv('Data/ps.nocontrols.its.rare7557.csv', row.names = 1)
+
+# Manipulate metadata to add Env and SourceSink columns
+#Add "Env" column, this could be rhiz-vs.-background soil or specific treatments (e.g. pairwise plants)
+
+#Env column for treatment
+#Here we will use "background soil" as the source
+metadata_its  %<>% 
+  mutate(Env = fct_explicit_na(TreatmentName, "Background_soil")) 
+
+#Here we are using 'FunGroup' for Env  
+#Here we will use "background soil", "forb" and "grass" as sources
+metadata_its  %<>% 
+  mutate(Env.v2 = ifelse(Env == "Background_soil" & FunGroup == "grass_x_forb", "Background_soil", as.character(FunGroup)))
+
+#Add source-sink columns for each Env 
+metadata_its %<>%
+  mutate (SourceSink = ifelse(Env == "Background_soil", "source", "sink"),
+          SourceSink.v2 = ifelse(Env.v2 =="Background_soil" | Env.v2 == "Forb" | Env.v2 == "Grass", "source", "sink"))
+
+#fix rownames
+row.names(metadata_its) <- metadata_its$SampleID_Fix
+
+
+## Run SourceTracker on 'Treatment' ##
+
+# extract the source environments and source/sink indices
+train.ix.its <- which(metadata_its$SourceSink=='source')
+test.ix.its <- which(metadata_its$SourceSink=='sink')
+envs.its <- metadata_its$Env
+if(is.element('Description',colnames(metadata_its))) desc <- metadata_its$Description
+
+
+# load SourceTracker package
+source('Scripts/SourceTracker.r')
+
+
+## Couldn't get the tuning to work so skipped ##
+# tune the alpha values using cross-validation (this is slow!)
+#tune.results <- tune.st(asvs_16s[train.ix,], envs[train.ix])
+#alpha1 <- tune.results$best.alpha1
+# alpha2 <- tune.results$best.alpha2
+# note: to skip tuning, run this instead:
+alpha1 <- alpha2 <- 0.001
+
+# train SourceTracker object on training data
+st.its <- sourcetracker(asvs_its[train.ix.its,], envs.its[train.ix.its])
+
+# the next command was too slow to finish running, even overnight on Cassie's old computer!
+# However, it looked like it was working
+# Results seemed to be: 20% background, 80% unknown - Much less than the 16S!
+
+# Estimate source proportions in test data
+results.its <- predict(st.its,asvs_its[test.ix.its,], alpha1=alpha1, alpha2=alpha2)
+
+# Estimate leave-one-out source proportions in training data 
+results.train.its <- predict(st.its, alpha1=alpha1, alpha2=alpha2)
+
+# plot results
+labels.its <- sprintf('%s %s', envs.its,desc)
+plot(results.its, labels.its[test.ix.its], type='pie')
+
+# other plotting functions
+# plot(results, labels[test.ix], type='bar')
+# plot(results, labels[test.ix], type='dist')
+# plot(results.train, labels[train.ix], type='pie')
+# plot(results.train, labels[train.ix], type='bar')
+# plot(results.train, labels[train.ix], type='dist')
+
+# plot results with legend
+# plot(results, labels[test.ix], type='pie', include.legend=TRUE, env.colors=c('#47697E','#5B7444','#CC6666','#79BEDB','#885588'))
+
+
+## Run SourceTracker on 'FunGroup' ##
+
+# extract the source environments and source/sink indices
+train.ix.fg.its <- which(metadata_its$SourceSink.v2=='source')
+test.ix.fg.its <- which(metadata_its$SourceSink.v2=='sink')
+envs.fg.its <- metadata_its$Env.v2
+if(is.element('Description',colnames(metadata_its))) desc <- metadata_its$Description
+
+## Couldn't get the tuning to work above so skipped ##
+alpha1 <- alpha2 <- 0.001
+
+# train SourceTracker object on training data
+st.fg.its <- sourcetracker(asvs_its[train.ix.fg.its,], envs.fg.its[train.ix.fg.its])
+
+# the next command was too slow to finish running, even overnight on Cassie's old computer!
+# However, it looked like it was working
+# Results seemed to be: 4% background soil, 45% forb, 25% grass, 25% unknown
+
+# Estimate source proportions in test data
+results.fg.its <- predict(st.fg.its,asvs_its[test.ix.fg.its,], alpha1=alpha1, alpha2=alpha2)
+
+# Estimate leave-one-out source proportions in training data 
+results.train.fg.its <- predict(st.fg.its, alpha1=alpha1, alpha2=alpha2)
+
+# plot results
+labels.fg.its <- sprintf('%s %s', envs.fg.its,desc)
+plot(results.fg.its, labels.fg.its[test.ix.fg.its], type='pie')
