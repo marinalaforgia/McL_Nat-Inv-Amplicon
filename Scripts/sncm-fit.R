@@ -34,7 +34,7 @@ sncm.fit <- function(spp, pool=NULL, stats=TRUE, taxon=NULL){
   freq <- freq[freq != 0]
   
   #Combine
-  C <- merge(p, freq, by=0)
+  C <- merge(p, freq, by=0) # this means merge by rownames
   C <- C[order(C[,2]),]
   C <- as.data.frame(C)
   C.0 <- C[!(apply(C, 1, function(y) any(y == 0))),] #Removes rows with any zero (absent in either source pool or local communities)
