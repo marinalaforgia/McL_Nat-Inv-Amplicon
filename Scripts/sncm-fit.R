@@ -71,7 +71,7 @@ sncm.fit <- function(spp, pool=NULL, stats=TRUE, taxon=NULL){
   
   ##Calculate AIC for binomial model
   bino.LL <- function(mu, sigma){
-    R = freq - pbinom(d, N, p, lower.tail=FALSE)
+    R = freq - pbinom(d, N, p, lower.tail = FALSE) # why am I getting NANs here? because N is not an integer. Shouldnt N = number of reads?
     R = dnorm(R, mu, sigma)
     -sum(log(R))
   }
