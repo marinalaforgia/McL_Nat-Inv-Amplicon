@@ -1165,30 +1165,24 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') # combini
 
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
-# 
-# PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
-#   gather(SampleID.occ, abun, -otu) %>%
-#   left_join(map, by = 'SampleID.occ') %>%
-#   group_by(otu, FunGroup) %>% # first try it by FunGroup?
-#   summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-#             coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-#             detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-#   group_by(otu) %>% # group by OTU
-#   summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-#             sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-#             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-#             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
-# 
-# otu_ranked2 <- occ_abun %>%
-#   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
-#   transmute(otu = otu,
-#             rank = Index) %>%
-#   arrange(desc(rank))
 
-otu_ranked <- occ_abun %>%
-  #left_join(PresenceSum, by='otu') %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
 
 BCaddition <- NULL
@@ -1267,8 +1261,9 @@ elbow <- which.max(BC_ranked$fo_diffs)
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
 
+
 # Models for the whole community
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = FALSE, pool = NULL)
+obs.np = sncm.fit(spp = t(otu), taxon = as.vector(rownames(otu)), stats = FALSE, pool = NULL)
 #sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
 
 (core.all.p <- ggplot() +
@@ -1322,10 +1317,26 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
 
 BCaddition <- NULL
 
@@ -1436,10 +1447,26 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
 
 BCaddition <- NULL
 
@@ -1550,9 +1577,23 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
 
 BCaddition <- NULL
@@ -1708,12 +1749,15 @@ test <- data.frame(otu = rownames(t(otu_table(core.all.ord))), t(otu_table(core.
 test2 <- t(data.frame(t(tax_table(core.all.ord))))
 test2 <- data.frame(otu = rownames(test2), test2)
 
-# test2[test2$Family == "Unknown_Family" & test2$Phylum == "Acidobacteria",]$Family <- "Unk_p_Acido_c_Sub6"
-# test2[test2$Family == "Unknown_Family" & test2$Order == "Oxyphotobacteria_Incertae_Sedis",]$Family <- "Unk_c_Oxyphotobacteria"
-# test2[test2$Family == "Unknown_Family" & test2$Order == "Gammaproteobacteria",]$Family <- "Unk_c_Gammaproteobacteria
-# "
+levels(test2$Family) <- c(levels(test2$Family), "Unk_p_Acido_c_Sub6", "Unk_c_Oxyphotobacteria", "Unk_c_Gammaproteobacteria", "Clostridiales_Family_XI", "Bacillales_Family_XI")
+test2[test2$Family == "Unknown_Family" & test2$Phylum == "Acidobacteria",]$Family <- "Unk_p_Acido_c_Sub6"
+test2[test2$Family == "Unknown_Family" & test2$Order == "Oxyphotobacteria_Incertae_Sedis",]$Family <- "Unk_c_Oxyphotobacteria"
+test2[test2$Family == "Unknown_Family" & test2$Order == "Gammaproteobacteria_Incertae_Sedis",]$Family <- "Unk_c_Gammaproteobacteria"
+test2[test2$Family == "Family_XI" & test2$Order == "Clostridiales",]$Family <-"Clostridiales_Family_XI"
+test2[test2$Family == "Family_XI" & test2$Order == "Bacillales",]$Family <- "Bacillales_Family_XI"
+
 tmp <- merge(test2[,c(1,6)], test, by = "otu")
-tmp <- filter(tmp, Family != "Unknown_Family", Family != "Family_XI")
+#tmp <- filter(tmp, Family != "Unknown_Family", Family != "Family_XI")
 rownames(tmp) <- tmp$Family
 otu <- tmp[ , c(3:128)]
 
@@ -1727,31 +1771,31 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') # combini
 
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
-# 
-# PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
-#   gather(SampleID.occ, abun, -otu) %>%
-#   left_join(map, by = 'SampleID.occ') %>%
-#   group_by(otu, FunGroup) %>% # first try it by FunGroup?
-#   summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-#             coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-#             detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-#   group_by(otu) %>% # group by OTU
-#   summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-#             sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-#             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-#             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
-# 
-# otu_ranked2 <- occ_abun %>%
-#   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
-#   transmute(otu = otu,
-#             rank = Index) %>%
-#   arrange(desc(rank))
 
-otu_ranked <- occ_abun %>%
-  #left_join(PresenceSum, by='otu') %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
+# otu_ranked <- occ_abun %>%
+#   #left_join(PresenceSum, by='otu') %>%
+#   transmute(otu=otu,
+#             rank = (otu_rel) + (otu_occ)) %>%
+#   arrange(desc(rank))
 
 BCaddition <- NULL
 
@@ -1765,7 +1809,7 @@ df_s <- data.frame(x_names,x)
 names(df_s)[2] <- 1 # i dont fully understand what this column is 
 BCaddition <- rbind(BCaddition,df_s)
   
-for(i in 2:294){
+for(i in 2:299){
   otu_add = otu_ranked$otu[i] # for the top 500 ranked OTUs, starting with the second one beacuse we computed the first previously
   add_matrix <- as.matrix(otu[otu_add,])
   #add_matrix <- t(add_matrix) # again dont need this because its a dataframe
@@ -1860,7 +1904,7 @@ plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>% 
             coreSite = ifelse(plot_freq == 1, 1, 0), 
             detect = ifelse(plot_freq > 0, 1, 0))
 
-plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:213]) # 1: # OTUs before cutoff of last 2% increase, but there are only 96 in the core so why up to 205? does this just rank them
+plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:78]) # 1: # OTUs before cutoff of last 2% increase, but there are only 96 in the core so why up to 205? does this just rank them
 
 (all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
   geom_bar(stat = 'identity', position = 'dodge') +
@@ -1884,10 +1928,26 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
 
 BCaddition <- NULL
 
@@ -1998,10 +2058,26 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
 
 BCaddition <- NULL
 
@@ -2112,10 +2188,26 @@ occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
-otu_ranked <- occ_abun %>%
-  transmute(otu=otu,
-            rank = (otu_rel) + (otu_occ)) %>%
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% # first try it by FunGroup?
+  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
+            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu) %>% # group by OTU
+  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
+            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
+            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
+            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+
+otu_ranked2 <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  transmute(otu = otu,
+            rank = Index) %>%
   arrange(desc(rank))
+
 
 BCaddition <- NULL
 
