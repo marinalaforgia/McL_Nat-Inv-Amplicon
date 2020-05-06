@@ -1,11 +1,12 @@
 ### 16S and ITS Analysis April 2020 ###
 rm(list=ls())
+
 #### Setup ####
 
 #setwd("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon") # Marina's Working Directory
 #setwd("/Users/Cassie/Documents/Dropbox/Greenhouse_ITS/McL_Nat-Inv-Amplicon") # Cassie's Working Directory
 
-### Load Libraries ###
+#### Load Libraries ####
 
 library(EcolUtils)
 library(ggplot2)
@@ -26,6 +27,7 @@ library(RColorBrewer)
 library(coin)
 library(rmarkdown)
 library(reshape)
+library(reshape2)
 library(betapart)
 library(dada2)
 library(extrafont)
@@ -36,7 +38,7 @@ library(biobroom)
 library(patchwork)
 library(VennDiagram)
 
-### Read in Data ###
+#### Read in Data ####
 
 ## Remove background soil for analysis ##
 
@@ -54,35 +56,37 @@ ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.
 
 # Metadata mapping file including biomass and traits (version4)
 mapping <- read.csv("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv") 
-#mapping <- read.csv("Data/Grassland-Amplicon-Mapping-File4.csv") #Cassie's path
+mapping <- read.csv("Data/Grassland-Amplicon-Mapping-File4.csv") #Cassie's path
 
 #Adding columns to the mapping file
 mapping$FunGroup <- ifelse(mapping$TreatmentName == "Invasive_grass", "Grass", NA)
 mapping$FunGroup <- ifelse(mapping$Competion == "SingleSpecies" & mapping$TreatmentName != "Invasive_grass", "Forb", mapping$FunGroup)
 mapping[is.na(mapping$FunGroup),]$FunGroup <- "grass_x_forb"
 mapping$FunGroup <- as.factor(mapping$FunGroup)
-
-# 16S mapping file does not match up with the mapping file for the ITS data, adjust here 
-for(i in sample_names(ps.16s.nocontrols)) {
-  sample_names(ps.16s.nocontrols)[which(sample_names(ps.16s.nocontrols) == i)] <- as.character(mapping[mapping$SampleID.16S == i,]$SampleID_Fix)
-}
-
-sample_names(ps.16s.nocontrols)
-sample_names(ps.ITS.nocontrols) # they match up!
-
-df.16s <- data.frame(sample_data(ps.16s.nocontrols))
-df.ITS <- data.frame(sample_data(ps.ITS.nocontrols))
-
-missing <- df.ITS[!(df.ITS$SampleID_Fix %in% df.16s$SampleID_Fix),]
-missing2 <- df.16s[!(df.16s$SampleID_Fix %in% df.ITS$SampleID_Fix),]
-row.names(mapping) <- mapping$SampleID_Fix
-sample_data(ps.ITS.nocontrols) <- mapping[which(mapping$SampleID_Fix %in% ps.ITS.nocontrols@sam_data$SampleID_Fix),]
-sample_data(ps.ITS.nocontrols) # fixed!
-
-sample_data(ps.16s.nocontrols) <- mapping
-
-rm(missing, missing2, df.16s, df.ITS, i)
-
+# 
+# #16S mapping file does not match up with the mapping file for the ITS data, adjust here
+# for(i in sample_names(ps.16s.nocontrols)) {
+#   sample_names(ps.16s.nocontrols)[which(sample_names(ps.16s.nocontrols) == i)] <- as.character(mapping[mapping$SampleID.16S == i,]$SampleID_Fix)
+# }
+# 
+# sample_names(ps.16s.nocontrols)
+# sample_names(ps.ITS.nocontrols) # they match up!
+# 
+# df.16s <- data.frame(sample_data(ps.16s.nocontrols))
+# df.ITS <- data.frame(sample_data(ps.ITS.nocontrols))
+# 
+# missing <- df.ITS[!(df.ITS$SampleID_Fix %in% df.16s$SampleID_Fix),]
+# missing2 <- df.16s[!(df.16s$SampleID_Fix %in% df.ITS$SampleID_Fix),]
+# row.names(mapping) <- mapping$SampleID_Fix
+# sample_data(ps.ITS.nocontrols) <- mapping[which(mapping$SampleID_Fix %in% ps.ITS.nocontrols@sam_data$SampleID_Fix),]
+# sample_data(ps.ITS.nocontrols) # fixed!
+# 
+# sample_data(ps.16s.nocontrols) <- mapping
+# 
+# rm(missing, missing2, df.16s, df.ITS, i)
+# 
+# saveRDS(ps.16s.nocontrols, "Data/16S/Intermediates/ps-nocontrols-unrare.RDS")
+# saveRDS(ps.ITS.nocontrols, "Data/ITS/greenhouse_its_itsx_decontam_controlsremoved.rds")
 
 ### Fix Taxonomy for DESeq analysis later ###
 
@@ -137,8 +141,8 @@ tax_table(ps.ITS.nocontrols) <- ITS.tax
 ### Rarefied Data ###
 
 ## 16S ##
-ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace = FALSE, rngseed = 5311)
-#saveRDS(ps.nocontrols.16s.rare9434, "Data/ps-nocontrols-rare9434.RDS")
+# ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace = FALSE, rngseed = 5311)
+# saveRDS(ps.nocontrols.16s.rare9434, "Data/16S/Intermediates/ps-nocontrols-rare9434.RDS")
 # 131 samples, lose one sample, GLM-0116
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
@@ -154,8 +158,8 @@ ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 
 
 
 ## ITS ##
-ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
-#saveRDS(ps.nocontrols.its.rare7557, "Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
+# ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
+# saveRDS(ps.nocontrols.its.rare7557, "Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
 # 132 samples
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
@@ -172,9 +176,6 @@ ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace
 ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
 ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
 
-
-
-#### Prep Datasets ####
 
 ## 16s ##
 
@@ -1152,7 +1153,6 @@ sncm.fit <- function(spp, pool=NULL, stats=TRUE, taxon=NULL){
 #NOTE: Issues arise when all the packages are loaded, only packages needed are tidyverse, reshape2, and vegan
 
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion))) # these were likely removed earlier but just to be sure
-test <- psmelt(ps.16s.nocontrols.rare)
 otu <- as.data.frame(t(otu_table(ps.16s.nocontrols.rare)))
 
 nReads <- 9434 
@@ -1179,7 +1179,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -1263,7 +1263,10 @@ occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[
 
 
 # Models for the whole community
-obs.np = sncm.fit(spp = t(otu), taxon = as.vector(rownames(otu)), stats = FALSE, pool = NULL)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+obs.np = sncm.fit(spp = spp, taxon = taxon, stats = FALSE, pool = NULL)
 #sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
 
 (core.all.p <- ggplot() +
@@ -1275,7 +1278,7 @@ obs.np = sncm.fit(spp = t(otu), taxon = as.vector(rownames(otu)), stats = FALSE,
             size = 1, color = 'black', alpha = .25) +
   geom_line(data = obs.np, aes(y = pred.upr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
-  geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
+  geom_line(data = obs.np, aes(y = pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
   labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
 
@@ -1301,6 +1304,17 @@ plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:213]) # 1: # OTUs bef
   scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
   theme(axis.text = element_text(size = 6)) +
   labs(x = 'Ranked OTUs', y = 'Occupancy by site'))
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.all <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, 205))
+
+for(i in otu.mod.all$otu){
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.all[otu.mod.all$otu == i,]$mod)
+
+}
+
 
 #### Core ASV (16s): Grass ####
 grass.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Grass")
@@ -1331,7 +1345,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -1412,8 +1426,12 @@ elbow <- which.max(BC_ranked$fo_diffs)
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
 
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats=FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+
+obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
+#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.g.p <- ggplot() +
   geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
@@ -1432,6 +1450,16 @@ core.g <- occ_abun$otu[occ_abun$fill == 'core']
 
 otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
 
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.g <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+
+for(i in otu.mod.g$otu){
+otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.g[otu.mod.g$otu == i,]$mod)
+
+}
 #### Core ASV (16s): Forb ####
 forb.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Forb")
 
@@ -1461,7 +1489,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -1542,8 +1570,12 @@ elbow <- which.max(BC_ranked$fo_diffs)
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
 
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+
+obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
+#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.f.p <- ggplot() +
   geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
@@ -1561,6 +1593,17 @@ sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
 core.f <- occ_abun$otu[occ_abun$fill == 'core']
 
 otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.f <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+
+for(i in otu.mod.f$otu){
+otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.f[otu.mod.f$otu == i,]$mod)
+
+}
 
 #### Core ASV (16s): Grass x Forb ####
 gf.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "grass_x_forb")
@@ -1590,7 +1633,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -1670,8 +1713,12 @@ elbow <- which.max(BC_ranked$fo_diffs)
 occ_abun$fill <- 'no'
 occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
 
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats=FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+
+obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
+#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.gf.p <- ggplot() +
   geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
@@ -1689,6 +1736,17 @@ sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
 core.gf <- occ_abun$otu[occ_abun$fill == 'core']
 
 otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.fg <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+
+for(i in otu.mod.fg$otu){
+otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.fg[otu.mod.fg$otu == i,]$mod)
+
+}
 
 #### Comparison of Core ####
 library(VennDiagram)
@@ -1736,6 +1794,34 @@ draw.triple.venn(area1 = 219,   # Forb core
                  lty = "blank",
                  category = c("Forbs", "Grasses", "Forbs & Grasses"))
 # grasses have a bigger core, but forbs are more diverse
+
+# what about those that are deterministically chosen by the plant?
+otu.mod.f.det <- filter(otu.mod.f, mod == "det")
+otu.mod.g.det <- filter(otu.mod.g, mod == "det")
+otu.mod.fg.det <- filter(otu.mod.fg, mod == "det")
+
+nrow(otu.mod.f.det[otu.mod.f.det$otu %in% otu.mod.g.det$otu,]) # n12: 67 forb OTUs also in grass
+nrow(otu.mod.g.det[otu.mod.g.det$otu %in% otu.mod.fg.det$otu,]) # n23: 70 grass OTUs in forbsxgrasses
+nrow(otu.mod.f.det[otu.mod.f.det$otu %in% otu.mod.fg.det$otu,]) # n13: 59 forb OTUs in forbsxgrasses
+
+test <- otu.mod.g.det[otu.mod.g.det$otu %in% otu.mod.fg.det$otu,]
+nrow(otu.mod.f.det[otu.mod.f.det$otu %in% test$otu,]) # n123 45
+
+nrow(otu.mod.f[otu.mod.f$mod == "det",]) # 93
+nrow(otu.mod.g[otu.mod.g$mod == "det",]) #171
+nrow(otu.mod.fg[otu.mod.fg$mod == "det",]) #106
+
+grid.newpage()  
+draw.triple.venn(area1 = 93,   # Forb core                  
+                 area2 = 171,   # Grass core
+                 area3 = 106,   # g_x_f core
+                 n12 = 67,
+                 n23 = 70,
+                 n13 = 59,
+                 n123 = 45,
+                 fill = c("pink", "green", "orange"),
+                 lty = "blank",
+                 category = c("Forbs", "Grasses", "Forbs & Grasses"))
 
 #### Core Family (16s): All ####
 
@@ -1785,7 +1871,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -1942,7 +2028,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -2072,7 +2158,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
@@ -2202,7 +2288,7 @@ PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
             nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
             Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
 
-otu_ranked2 <- occ_abun %>%
+otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
