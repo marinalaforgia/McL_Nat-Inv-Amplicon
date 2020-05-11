@@ -163,7 +163,7 @@ ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 
 # 132 samples
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
-#\write.table(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.txt", sep = "\t")
+#write.table(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.txt", sep = "\t")
 
 
 
@@ -2452,7 +2452,6 @@ draw.triple.venn(area1 = 219,   # Forb core
 
 
 
-
 #### Differential abundance analysis: 16s ####
 ## 16S: Soil v Rhiz  ##
 
@@ -2711,6 +2710,294 @@ res.alpha <- res[which(res$padj < alpha), ]
 
 
 
+#### Differential abundance analysis: 16s - Family ####
+## 16S: Soil v Rhiz  ##
+ps.16s.nocontrols.fam <- tax_glom(ps.16s.nocontrols, taxrank = "Family", NArm = FALSE )
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.fam, ~ SampleSubType)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts, if needed
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.16s.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+#Bind taxonomy to results
+res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.fam)[rownames(res.alpha), ], "matrix"))
+
+#tidy results 
+res <- tidy(res.alpha)
+
+#generate plot of significant ASVs for each contrast
+# Order order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+# Family order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle("Plant Rhizosphere vs. Background soil")
+
+#plot results
+
+p
+
+#tidy results into a table to save
+df.res <- as.data.frame(res)
+names(df.res)[1] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res.tax, "Data/16s.ddseq.soilrhiz.fam.csv")
+
+
+## 16S:  G v SA v ST  ##
+ps.16s.nocontrols.nobss <- subset_samples(ps.16s.nocontrols.fam, SampleSubType !="Background_soil_sand_mix")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ TreatmentName)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("SA.G", "ST.G",
+              "SAG.G", "STG.G")
+
+contrast.list <- list(SA.G = c("TreatmentName", "Stress_avoiding_forb", "Invasive_grass"),
+                      ST.G = c("TreatmentName", "Stress_tolerant_forb", "Invasive_grass"),
+                      SAG.G = c("TreatmentName", "SA_forb_X_grass", "Invasive_grass"),
+                      STG.G = c("TreatmentName", "ST_forb_X_grass", "Invasive_grass"))
+
+
+plot.name.list <- list(SA.G = "SA forb vs. Grass",
+                       ST.G = "ST forb vs. Grass",
+                       SAG.G = "SA forb X grass vs. Grass",
+                       STG.G = "ST forb X grass vs. Grass")
+
+alpha = 0.05
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Family order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$SA.G + plot.list$ST.G + plot.list$SAG.G + plot.list$STG.G
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/16s.ddseq.treatment.fam.csv")
+
+
+## 16S: G v F ##
+#make "grass" the result to compare to
+
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.16s.nocontrols.nobss)$FunGroup), "Grass")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("F.G", "FG.G")
+
+contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
+                      FG.G = c("FunGroup", "grass_x_forb", "Grass"))
+
+
+plot.name.list <- list(F.G = "Forb vs. Grass",
+                       FG.G = "Forb x grass vs. Grass")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Family order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Family)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$F.G+ plot.list$FG.G 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/16s.ddseq.fungroup.fam.csv")
+
+
+#same as above but now with "forb" as the comparison
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.16s.nocontrols.nobss)$FunGroup, "Forb")
+
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+contrasts = c("G.F", "FG.F")
+
+contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
+                      FG.F = c("FunGroup", "grass_x_forb", "Forb"))
+
+
+plot.name.list <- list(G.F = "Grass vs. Forb",
+                       FG.F = "Forb x grass vs. Forb")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Genus order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$G.F+ plot.list$FG.F 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/16s.ddseq.fungroup.v2.fam.csv")
+
+# More families are high abundance in grass x forb vs. forbs alone (vs. grass x forb vs. grasses alone)
+# Does this suggest that forbs shift more than grasses during competion?
+# Or that grasses are stronger drivers of rhizosphere communities?
+
+
+## 16S: Competition ##
+treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ Competion)
+
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.16s.treat) #gives us comparisons for our contrasts
+
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.16s.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+#Bind taxonomy to results
+res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+
+#tidy results 
+res <- tidy(res.alpha)
+
+#generate plot of significant ASVs for each contrast
+# Order order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+# Family order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle("Two species vs. One species")
+
+#plot results
+
+p
+
+#tidy results into a table to save
+df.res <- as.data.frame(res)
+names(df.res)[1] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res.tax, "Data/16s.ddseq.competition.fam.csv")
+
+# Some families differ during competition (where as ASVs did not)
+# however the log2fold change is very low, so may not be informative
 
 
 
@@ -2774,7 +3061,7 @@ names(df.res)[1] <- "ASV"
 write.csv(df.res, "Data/its.ddseq.soilrhiz.csv")
 
 
-## 16S:  G v SA v ST  ##
+## ITS:  G v SA v ST  ##
 ps.its.nocontrols.nobss <- subset_samples(ps.ITS.nocontrols, SampleSubType !="Background_soil_sand_mix")
 
 treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ TreatmentName)
@@ -2837,7 +3124,7 @@ names(df.res)[2] <- "ASV"
 write.csv(df.res, "Data/its.ddseq.treatment.csv")
 
 
-## 16S: G v F ##
+## ITS: G v F ##
 #make "grass" the result to compare to
 
 sample_data(ps.its.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.its.nocontrols.nobss)$FunGroup, "Grass")
@@ -2960,7 +3247,7 @@ write.csv(df.res, "Data/its.ddseq.fungroup.v2.csv")
 # See same results in 16S communities
 
 
-## 16S: Competition ##
+## ITS: Competition ##
 ps.its.nocontrols.comp <- subset_samples(ps.ITS.nocontrols, !(is.na(Competion)))
 
 treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ Competion)
@@ -2985,6 +3272,320 @@ res.alpha <- res[which(res$padj < alpha), ]
 
 # So does this make sense to also do by plant species specifically? 
 # Can certainly do this with the contrasts, not sure if necesary?
+
+
+
+
+
+#### Differential abundance analysis: ITS - Family ####
+ps.its.nocontrols.fam <- tax_glom(ps.ITS.nocontrols, taxrank = "Family", NArm = FALSE )
+
+
+## ITS: Soil v Rhiz  ##
+
+treat.its = phyloseq_to_deseq2(ps.its.nocontrols.fam, ~ SampleSubType)
+
+dds.its.treat = DESeq(treat.its, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.its.treat) #gives us comparisons for our contrasts, if needed
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.its.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+#Bind taxonomy to results
+res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.ITS.nocontrols)[rownames(res.alpha), ], "matrix"))
+
+#tidy results 
+res <- tidy(res.alpha)
+
+#generate plot of significant ASVs for each contrast
+# Order order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+# Family order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Family)) + geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle("Plant Rhizosphere vs. Background soil")
+
+#plot results
+
+p
+
+#tidy results into a table to save
+df.res <- as.data.frame(res)
+names(df.res)[1] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.fam)[df.res$ASV, ], "matrix"))
+write.csv(df.res, "Data/its.ddseq.soilrhiz.fam.csv")
+
+
+## ITS:  G v SA v ST  ##
+ps.its.nocontrols.nobss <- subset_samples(ps.its.nocontrols.fam, SampleSubType !="Background_soil_sand_mix")
+
+treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ TreatmentName)
+
+dds.its.treat = DESeq(treat.its, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.its.treat) #gives us comparisons for our contrasts
+
+contrasts = c("SA.G", "ST.G",
+              "SAG.G", "STG.G")
+
+contrast.list <- list(SA.G = c("TreatmentName", "Stress_avoiding_forb", "Invasive_grass"),
+                      ST.G = c("TreatmentName", "Stress_tolerant_forb", "Invasive_grass"),
+                      SAG.G = c("TreatmentName", "SA_forb_X_grass", "Invasive_grass"),
+                      STG.G = c("TreatmentName", "ST_forb_X_grass", "Invasive_grass"))
+
+
+plot.name.list <- list(SA.G = "SA forb vs. Grass",
+                       ST.G = "ST forb vs. Grass",
+                       SAG.G = "SA forb X grass vs. Grass",
+                       STG.G = "ST forb X grass vs. Grass")
+
+alpha = 0.1
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.its.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.its.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Family order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$SA.G + plot.list$ST.G + plot.list$SAG.G + plot.list$STG.G
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.fam)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/its.ddseq.treatment.fam.csv")
+
+#results disappear at family level, means ASV level differences are important here
+
+
+## ITS: G v F ##
+#make "grass" the result to compare to
+
+sample_data(ps.its.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.its.nocontrols.nobss)$FunGroup), "Grass")
+
+treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ FunGroup)
+
+dds.its.treat = DESeq(treat.its, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.its.treat) #gives us comparisons for our contrasts
+
+contrasts = c("F.G", "FG.G")
+
+contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
+                      FG.G = c("FunGroup", "grass_x_forb", "Grass"))
+
+
+plot.name.list <- list(F.G = "Forb vs. Grass",
+                       FG.G = "Forb x grass vs. Grass")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.its.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.its.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Family order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$F.G+ plot.list$FG.G 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.nobss)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/its.ddseq.fungroup.fam.csv")
+
+
+#same as above but now with "forb" as the comparison
+sample_data(ps.its.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.its.nocontrols.nobss)$FunGroup, "Forb")
+
+treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ FunGroup)
+
+dds.its.treat = DESeq(treat.its, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.its.treat) #gives us comparisons for our contrasts
+
+contrasts = c("G.F", "FG.F")
+
+contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
+                      FG.F = c("FunGroup", "grass_x_forb", "Forb"))
+
+
+plot.name.list <- list(G.F = "Grass vs. Forb",
+                       FG.F = "Forb x grass vs. Forb")
+
+alpha = 0.01
+res.list <- list()
+plot.list <- list()
+
+for(i in contrasts) {
+  #get results for each contrast
+  res <- results(dds.its.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
+  #filter results by p-value
+  res.alpha <- res[which(res$padj < alpha), ]
+  #Bind taxonomy to results
+  res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.its.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+  #tidy results 
+  res.list[[paste(i,sep = ".")]] <- tidy(res.alpha)
+  
+  #generate plot of significant ASVs for each contrast
+  # Order order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  # Family order
+  x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+  x = sort(x, TRUE)
+  res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  plot.list[[i]] = p
+}
+
+#plot results
+
+plot.list$G.F+ plot.list$FG.F 
+
+#tidy results into a table to save
+df.res <- plyr::ldply(res.list, function(x) x)
+names(df.res)[1] <- "Contrast"
+names(df.res)[2] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.nobss)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res, "Data/its.ddseq.fungroup.v2.fam.csv")
+
+
+
+
+## ITS: Competition ##
+treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ Competion)
+
+dds.its.treat = DESeq(treat.its, test = "Wald", fitType = "parametric")
+
+resultsNames(dds.its.treat) #gives us comparisons for our contrasts
+
+
+alpha = 0.01
+
+#get results 
+res <- results(dds.its.treat, pAdjustMethod = "bonferroni")
+
+#filter results by p-value
+res.alpha <- res[which(res$padj < alpha), ]
+
+
+#Bind taxonomy to results
+res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.its.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
+
+#tidy results 
+res <- tidy(res.alpha)
+
+#generate plot of significant ASVs for each contrast
+# Order order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+# Family order
+x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
+x = sort(x, TRUE)
+res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
+p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle("Two species vs. One species")
+
+#plot results
+
+p
+
+#tidy results into a table to save
+df.res <- as.data.frame(res)
+names(df.res)[1] <- "ASV"
+
+df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.nobss)[df.res$ASV, ], "matrix"))
+
+write.csv(df.res.tax, "Data/its.ddseq.competition.fam.csv")
+
+# Some families differ during competition (where as ASVs did not)
+# however the log2fold change is very low, so may not be informative
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
