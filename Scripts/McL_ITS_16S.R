@@ -55,15 +55,18 @@ ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.
 #132 samples
 
 # Metadata mapping file including biomass and traits (version4)
-mapping <- read.csv("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv") 
+mapping <- read.csv("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv")
 mapping <- read.csv("Data/Grassland-Amplicon-Mapping-File4.csv") #Cassie's path
-
-#Adding columns to the mapping file
-mapping$FunGroup <- ifelse(mapping$TreatmentName == "Invasive_grass", "Grass", NA)
-mapping$FunGroup <- ifelse(mapping$Competion == "SingleSpecies" & mapping$TreatmentName != "Invasive_grass", "Forb", mapping$FunGroup)
-mapping[is.na(mapping$FunGroup),]$FunGroup <- "grass_x_forb"
-mapping$FunGroup <- as.factor(mapping$FunGroup)
 # 
+# #### Mapping file matching NOT NEEDED ####
+# #Adding columns to the mapping file
+# mapping$FunGroup <- ifelse(mapping$TreatmentName == "Invasive_grass", "Grass", NA)
+# mapping$FunGroup <- ifelse(mapping$Competion == "SingleSpecies" & mapping$TreatmentName != "Invasive_grass", "Forb", mapping$FunGroup)
+# 
+# mapping$FunGroup <- ifelse(mapping$Competion == "TwoSpecies", "grass_x_forb", as.character(mapping$FunGroup))
+# 
+# write.csv(mapping, "/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon/Data/Setup/Grassland-Amplicon-Mapping-File4.csv", row.names = F)
+
 # #16S mapping file does not match up with the mapping file for the ITS data, adjust here
 # for(i in sample_names(ps.16s.nocontrols)) {
 #   sample_names(ps.16s.nocontrols)[which(sample_names(ps.16s.nocontrols) == i)] <- as.character(mapping[mapping$SampleID.16S == i,]$SampleID_Fix)
@@ -88,7 +91,7 @@ mapping$FunGroup <- as.factor(mapping$FunGroup)
 # saveRDS(ps.16s.nocontrols, "Data/16S/Intermediates/ps-nocontrols-unrare.RDS")
 # saveRDS(ps.ITS.nocontrols, "Data/ITS/greenhouse_its_itsx_decontam_controlsremoved.rds")
 
-### Fix Taxonomy for DESeq analysis later ###
+#### DESeq fix taxonomy ####
 
 # Rename NA's & remove prefixes if they exist (e.g. p__)
 # This is important if we want to bind taxonomy to deseq results later
@@ -137,8 +140,7 @@ ITS.tax <- as.matrix(df.ITS.tax)
 
 tax_table(ps.ITS.nocontrols) <- ITS.tax
 
-
-### Rarefied Data ###
+#### Rarefied Data ####
 
 ## 16S ##
 # ps.nocontrols.16s.rare9434 <- rarefy_even_depth(ps.16s.nocontrols, 9434, replace = FALSE, rngseed = 5311)
@@ -160,7 +162,7 @@ ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 
 ## ITS ##
 # ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
 # saveRDS(ps.nocontrols.its.rare7557, "Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
-# 132 samples
+# # 132 samples
 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
 #write.table(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.txt", sep = "\t")
@@ -179,13 +181,13 @@ ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsrem
 
 ## 16s ##
 
-ps.16s.nocontrols.rare.spp <- subset_samples(ps.16s.nocontrols.rare, Competion != "TwoSpecies")
+ps.16s.nocontrols.rare.spp <- subset_samples(ps.16s.nocontrols.rare, Competion == "SingleSpecies")
 
 ps.16s.nocontrols.rare.spp.RA <- transform_sample_counts(ps.16s.nocontrols.rare.spp, function(x) x / sum(x)) # relative abundance (used later)
 
 ## ITS ##
 
-ps.ITS.nocontrols.rare.spp <- subset_samples(ps.ITS.nocontrols.rare, Competion != "TwoSpecies") 
+ps.ITS.nocontrols.rare.spp <- subset_samples(ps.ITS.nocontrols.rare, Competion == "SingleSpecies") 
 
 ps.ITS.nocontrols.rare.spp.RA <- transform_sample_counts(ps.ITS.nocontrols.rare.spp, function(x) x / sum(x)) 
 
@@ -245,9 +247,50 @@ adonis(DistWU.Spp ~ FunGroup, as(sample_data(ps.16s.nocontrols.rare.spp), "data.
 C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp), "data.frame")$FunGroup)
 permutest(C, permutations = 9999) # spread doesnt vary between functional group. grasses and forbs have significantly different communities
 
+#### Ordination (16S): spp ####
+
+###
+# Forb Species
+###
+
+ps.16s.nocontrols.rare.spp.f <- subset_samples(ps.16s.nocontrols.rare.spp, grass == "none")
+
+ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.f, "PCoA", "wunifrac")
+
+plot_ordination(ps.16s.nocontrols.rare.spp.f, ps.16s.nc.rare.spp.ord, shape = "Plant SpeciesSampled", color = "PlantSpeciesSampled") +
+  theme_bw(base_size = 20) +
+  geom_point(size = 3) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) 
+
+DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.f, method = "wunifrac", type = "samples")
+
+adonis(DistWU.Spp ~ PlantSpeciesSampled, as(sample_data(ps.16s.nocontrols.rare.spp.f), "data.frame"), permutations = 9999) # not significantly different among species... though really effing close
+
+C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.f), "data.frame")$PlantSpeciesSampled)
+permutest(C, permutations = 9999) # spread doesnt vary between forbs species
+
+### 
+# Grass species
+###
+ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.g, "PCoA", "wunifrac")
+
+plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, shape = "Plant SpeciesSampled", color = "PlantSpeciesSampled") +
+  theme_bw(base_size = 20) +
+  geom_point(size = 3) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) 
+
+ps.16s.nocontrols.rare.spp.g <- subset_samples(ps.16s.nocontrols.rare.spp, forb == "none")
+
+DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.g, method = "wunifrac", type = "samples")
+
+adonis(DistWU.Spp ~ PlantSpeciesSampled, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame"), permutations = 9999) # grass microbiomes are sig different, particularly medusahead
+
+C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame")$PlantSpeciesSampled)
+permutest(C, permutations = 9999)
+
 #### Ordination (16S): Competition ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
-
+#ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, forb != "none")
 ps.rare.ord.tr <- ordinate(ps.16s.nocontrols.rare, "PCoA", "wunifrac")
 
 plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "FunGroup", shape = "Competion") +
@@ -905,22 +948,23 @@ df_taxa <- data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.du
 kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Alpha diveristy: 16S ####
-plot_richness(ps.16s.nocontrols.rare, measures = c("Observed", "Shannon"), x = "FunGroup", color = "FunGroup") + 
+plot_richness(ps.16s.nocontrols.rare, measures = c("Observed", "Shannon", "Chao1"), x = "FunGroup", color = "FunGroup") + 
   theme(text = element_text(size=24)) + geom_boxplot() + 
   geom_jitter() +
   theme(axis.text.x = element_text(angle=-70, hjust=0, vjust=.5)) 
 
 ## Stats ##
 
-GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = c("Observed","Shannon", "InvSimpson"))
+GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = c("Observed","Shannon", "InvSimpson", "Chao1"))
 GL_Alpha2 <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
 
 #kruskal_test(Observed ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha2)
 
+GL_Alpha2$FunGroup <- as.factor(GL_Alpha2$FunGroup)
 kruskal_test(Shannon ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha2)
 # breaking news: shannon diversity does vary
 
-dunnTest(Shannon ~ FunGroup, data = GL_Alpha2, method = "bh") # forbs have higher alpha diversity than grasses; grasses with forbs have marginally higher diversity than grasses, but not than forbs
+dunnTest(Shannon ~ FunGroup, data = GL_Alpha2, method = "bh") # forbs have higher alpha diversity than grasses; competition treatments have marginally higher diversity than grasses, but not than forbs. forbs add diversity to competition
 
 #### Alpha diversity: ITS ####
 plot_richness(ps.ITS.nocontrols.rare, measures = c("Observed", "Shannon"), x = "FunGroup", color = "FunGroup") + 
@@ -1149,18 +1193,17 @@ sncm.fit <- function(spp, pool=NULL, stats=TRUE, taxon=NULL){
 }
 
 #### Core ASV (16s): All ####
-
-#NOTE: Issues arise when all the packages are loaded, only packages needed are tidyverse, reshape2, and vegan
+### Note: just because an ASV/family/taxonomic unit does not appear in the CORE does not mean it does not appear in the SAMPLE, not sure how useful it is to break it up and look for changes in the core between these different groups #
 
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion))) # these were likely removed earlier but just to be sure
 otu <- as.data.frame(t(otu_table(ps.16s.nocontrols.rare)))
 
-nReads <- 9434 
+nReads <- 9434
 map <- mapping
 
 otu_PA <- 1*((otu>0)==1)  # presence-absence data (if OTU is present (greater than 0) assign a 1)
 otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  # total number of sites that OTU is present in, divided by the number of sites  (occupancy calculation)
-otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     # relative abundance: For each column divide every entry by the column total (this give relative abundance  of each OTU per sample), then give calculate the mean relative abundance per OTU by calculating the mean of each row 
+otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     # relative abundance: For each column divide every entry by the column total (this give relative abundance  of each OTU per sample), then give calculate the mean relative abundance per OTU by calculating the mean of each row
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') # combining occupancy and abundance; occupancy of an OTU is average number of samples an OTU occurs in, abundance is the average relative abundance of that OTU within a sample
 
 # for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
@@ -1183,96 +1226,100 @@ otu_ranked <- occ_abun %>%
   left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
+# 
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] # take the first ranked OTU
+# start_matrix <- as.matrix(otu[otu_start,]) # extract that OTU's abundance per sample, this should be a one column vector
+# #start_matrix <- t(start_matrix) # turns it into a one row vector, but mine already is because my original OTU table is a dataframe, theirs is already a matrix
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) #Error in combn(ncol(start_matrix), 2) : n < m (fixed above); take every combination of samples, and for each combination give the absolute difference in those two OTU abundances, sum them all (sum what?) and divide by 2* number of reads (because 2 samples); i have no idea what the sum function is doing given that inside sum there's only one number, this is relevant later I believe?
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 # i dont fully understand what this column is 
+# BCaddition <- rbind(BCaddition,df_s)
+#   
+# for(i in 2:500){
+#   otu_add = otu_ranked$otu[i] # for the top 500 ranked OTUs, starting with the second one beacuse we computed the first previously
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   #add_matrix <- t(add_matrix) # again dont need this because its a dataframe
+#   start_matrix <- rbind(start_matrix, add_matrix) # bind together the next ranked OTU with the previously ranked OTU
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) # and compute the difference again
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+#   df_a <- data.frame(x_names, x)
+#   names(df_a)[2] <- i 
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
+# }
+# 
+# # and this code does it for the last one, I think 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
+# df_full <- data.frame(x_names, x)
+# #names(df_full)[2] <- length(rownames(otu)) # this assumes we are looking at all OTUs, not just the top 500 ranked, right?
+# names(df_full)[2] <- i + 1 #I think
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names') # each column is an OTU, each row a comparison of two samples, so the first (non-sample) column is the comparison of the first ranked OTU's abundance between the two samples specified, the second column is the difference in the second rank OTU's abundance between teh two samples specified and so on all the way until the 500th ranked OTU; it does this for each combination of samples
+#  
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() + 
+#   theme(strip.background = element_blank(), 
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text", 
+#            x = elbow + 10, 
+#            y = .15, 
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
+#   annotate(geom = "text", 
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
+#            y = .08, 
+#            label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_asv_all.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_asv_all.RDS")
 
-BCaddition <- NULL
-
-otu_start <- otu_ranked$otu[1] # take the first ranked OTU
-start_matrix <- as.matrix(otu[otu_start,]) # extract that OTU's abundance per sample, this should be a one column vector
-#start_matrix <- t(start_matrix) # turns it into a one row vector, but mine already is because my original OTU table is a dataframe, theirs is already a matrix
-
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) #Error in combn(ncol(start_matrix), 2) : n < m (fixed above); take every combination of samples, and for each combination give the absolute difference in those two OTU abundances, sum them all (sum what?) and divide by 2* number of reads (because 2 samples); i have no idea what the sum function is doing given that inside sum there's only one number, this is relevant later I believe?
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 # i dont fully understand what this column is 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add = otu_ranked$otu[i] # for the top 500 ranked OTUs, starting with the second one beacuse we computed the first previously
-  add_matrix <- as.matrix(otu[otu_add,])
-  #add_matrix <- t(add_matrix) # again dont need this because its a dataframe
-  start_matrix <- rbind(start_matrix, add_matrix) # bind together the next ranked OTU with the previously ranked OTU
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) # and compute the difference again
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
-  df_a <- data.frame(x_names, x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-# and this code does it for the last one, I think 
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
-df_full <- data.frame(x_names, x)
-#names(df_full)[2] <- length(rownames(otu)) # this assumes we are looking at all OTUs, not just the top 500 ranked, right?
-names(df_full)[2] <- i + 1 #I think
-BCfull <- left_join(BCaddition, df_full, by = 'x_names') # each column is an OTU, each row a comparison of two samples, so the first (non-sample) column is the comparison of the first ranked OTU's abundance between the two samples specified, the second column is the difference in the second rank OTU's abundance between teh two samples specified and so on all the way until the 500th ranked OTU; it does this for each combination of samples
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC = mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC = MeanBC/max(MeanBC))
-
-Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
-
+occ_abun.asv.all <- readRDS("Data/16S/Core/occ_abun_asv_all.RDS")
+BC_ranked.asv.all <- readRDS("Data/16S/Core/BC_ranked_asv_all.RDS")
 
 # Models for the whole community
 taxon <- as.matrix(rownames(otu))
 rownames(taxon) <- taxon
 spp <- t(otu)
-obs.np = sncm.fit(spp = spp, taxon = taxon, stats = FALSE, pool = NULL)
-#sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+obs.np <- sncm.fit(spp = spp, taxon = taxon, stats = FALSE, pool = NULL)
 
-(core.all.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+ggplot() +
+  geom_point(data = occ_abun.asv.all[occ_abun.asv.all$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.all[occ_abun.asv.all$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -1280,13 +1327,13 @@ obs.np = sncm.fit(spp = spp, taxon = taxon, stats = FALSE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy")
 
-core.all <- occ_abun$otu[occ_abun$fill == 'core']
+core.all <- occ_abun.asv.all$otu[occ_abun.asv.all$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.asv.all <- decostand(otu, method = "total", MARGIN = 2)
 
-plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>% # this is changing my sample names for some reason, replacing the "-" with a "."
+plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun.asv.all)), otu_relabun.asv.all) %>%
   gather(SampleID.occ, relabun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
   left_join(otu_ranked, by = 'otu') %>%
@@ -1296,147 +1343,166 @@ plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>% 
             coreSite = ifelse(plot_freq == 1, 1, 0), 
             detect = ifelse(plot_freq > 0, 1, 0))
 
-plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:213]) # 1: # OTUs before cutoff of last 2% increase, but there are only 96 in the core so why up to 205? does this just rank them
+plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:205])
 
 (all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
   geom_bar(stat = 'identity', position = 'dodge') +
   coord_flip() +
   scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
   theme(axis.text = element_text(size = 6)) +
-  labs(x = 'Ranked OTUs', y = 'Occupancy by site'))
+  labs(x = 'Ranked OTUs', y = 'Occupancy by sample'))
 
 ## divide core into neutral vs deterministic vs dispersal limited ##
-otu.mod.all <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, 205))
+otu.mod.all <- data.frame(otu = occ_abun.asv.all[occ_abun.asv.all$fill == "core",]$otu, mod = rep(NA, 205))
 
 for(i in otu.mod.all$otu){
-otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.asv.all[occ_abun.asv.all$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
 
-otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.all[otu.mod.all$otu == i,]$mod)
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.asv.all[occ_abun.asv.all$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.all[otu.mod.all$otu == i,]$mod)
 
 }
 
+#rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum)
+
+# look at differences in positively selected for and negatively selected for ASVS
+plotDF.s <- filter(plotDF, otu %in% otu.mod.all[otu.mod.all$mod != "neu",]$otu)
+plotDF.dt <- filter(plotDF, otu %in% otu.mod.all[otu.mod.all$mod == "det",]$otu)
+
+ggplot(plotDF.dt, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
+  geom_bar(stat = 'identity', position = 'dodge') +
+  coord_flip() +
+  scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
+  theme(axis.text = element_text(size = 6)) +
+  labs(x = 'Ranked OTUs', y = 'Occupancy by sample')
+
+
+# ok now I have core ASVs that are positively and negatively selected for, and I can look at how those vary across functional groups... but how to choose there are so many!
 
 #### Core ASV (16s): Grass ####
 grass.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Grass")
 
 otu <- as.data.frame(t(otu_table(grass.core)))
 
-nReads <- 9434 
+nReads <- 9434
 
-otu_PA <- 1*((otu>0)==1)  
-otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  
-otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
-occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
+otu_PA <- 1*((otu>0)==1)
+otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
+otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)
+occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu')
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
+
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
-
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-  group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
   arrange(desc(rank))
 
+# 
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1]
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads))
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1
+# BCaddition <- rbind(BCaddition,df_s)
+# 
+# for(i in 2:500){
+#   otu_add=otu_ranked$otu[i]
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix)
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1
+# BCfull <- left_join(BCaddition,df_full, by = 'x_names')
+# 
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>%
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC=mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC=MeanBC/max(MeanBC))
+# 
+# Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0, (Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.g.p <- ggplot(BC_ranked[1:350,],
+#                        aes(x = factor(BC_ranked$rank[1:350], levels = BC_ranked$rank[1:450]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() +
+#   theme(strip.background = element_blank(),
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text",
+#            x = elbow + 10,
+#            y = .15,
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +
+#   annotate(geom = "text",
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4,
+#            y = .08,
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_asv_g.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_asv_g.RDS")
 
-BCaddition <- NULL
-
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
-
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add=otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC=mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC=MeanBC/max(MeanBC))
-
-Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0, (Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.g.p <- ggplot(BC_ranked[1:350,], 
-                       aes(x = factor(BC_ranked$rank[1:350], levels = BC_ranked$rank[1:450]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+occ_abun.asv.g <- readRDS("Data/16S/Core/occ_abun_asv_g.RDS")
+BC_ranked.asv.g <- readRDS("Data/16S/Core/BC_ranked_asv_g.RDS")
 
 taxon <- as.matrix(rownames(otu))
 rownames(taxon) <- taxon
 spp <- t(otu)
 
 obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
-#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.g.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.g[occ_abun.asv.g$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.g[occ_abun.asv.g$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -1444,22 +1510,24 @@ obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Core: Grass Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.g <- occ_abun$otu[occ_abun$fill == 'core']
+core.g <- occ_abun.asv.g$otu[occ_abun.asv.g$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
-
+otu_relabun.asv.g <- decostand(otu, method = "total", MARGIN = 2)
 
 ## divide core into neutral vs deterministic vs dispersal limited ##
-otu.mod.g <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+otu.mod.g <- data.frame(otu = occ_abun.asv.g[occ_abun.asv.g$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun.asv.g[occ_abun.asv.g$fill == "core",]$otu))))
 
 for(i in otu.mod.g$otu){
-otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun.asv.g[occ_abun.asv.g$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
 
-otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.g[otu.mod.g$otu == i,]$mod)
+otu.mod.g[otu.mod.g$otu == i,]$mod <- ifelse(log10(occ_abun.asv.g[occ_abun.asv.g$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.g[otu.mod.g$otu == i,]$mod)
 
 }
+
+rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum, grass.core)
+
 #### Core ASV (16s): Forb ####
 forb.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Forb")
 
@@ -1472,115 +1540,118 @@ otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
 otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
-map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
+map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu, FunGroup) %>%
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
   group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
 
+# 
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] 
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 
+# BCaddition <- rbind(BCaddition,df_s)
+#   
+# for(i in 2:500){
+#   otu_add=otu_ranked$otu[i] 
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix) 
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i 
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1 
+# BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
+#  
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC=mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC=MeanBC/max(MeanBC))
+# 
+# Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase)+1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.f.p <- ggplot(BC_ranked[1:250,], 
+#                        aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() + 
+#   theme(strip.background = element_blank(), 
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text", 
+#            x = elbow + 50, 
+#            y = .15, 
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
+#   annotate(geom = "text", 
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 50, 
+#            y = .08, 
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_asv_f.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_asv_f.RDS")
 
-BCaddition <- NULL
-
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
-
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add=otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC=mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC=MeanBC/max(MeanBC))
-
-Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase)+1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.f.p <- ggplot(BC_ranked[1:250,], 
-                       aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 50, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 50, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+occ_abun.asv.f <- readRDS("Data/16S/Core/occ_abun_asv_f.RDS")
+BC_ranked.asv.f <- readRDS("Data/16S/Core/BC_ranked_asv_f.RDS")
 
 taxon <- as.matrix(rownames(otu))
 rownames(taxon) <- taxon
 spp <- t(otu)
-
 obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
-#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.f.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.f[occ_abun.asv.f$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.f[occ_abun.asv.f$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -1588,22 +1659,24 @@ obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Core: Forb Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.f <- occ_abun$otu[occ_abun$fill == 'core']
+core.f <- occ_abun.asv.f$otu[occ_abun.asv.f$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.asv.f <- decostand(otu, method = "total", MARGIN = 2)
 
 
 ## divide core into neutral vs deterministic vs dispersal limited ##
-otu.mod.f <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+otu.mod.f <- data.frame(otu = occ_abun.asv.f[occ_abun.asv.f$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun.asv.f[occ_abun.asv.f$fill == "core",]$otu))))
 
 for(i in otu.mod.f$otu){
-otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun.asv.f[occ_abun.asv.f$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
 
-otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.f[otu.mod.f$otu == i,]$mod)
+otu.mod.f[otu.mod.f$otu == i,]$mod <- ifelse(log10(occ_abun.asv.f[occ_abun.asv.f$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.f[otu.mod.f$otu == i,]$mod)
 
 }
+
+rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum, forb.core)
 
 #### Core ASV (16s): Grass x Forb ####
 gf.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "grass_x_forb")
@@ -1617,113 +1690,117 @@ otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
 otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-  group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
 
-BCaddition <- NULL
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] 
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 
+# BCaddition <- rbind(BCaddition,df_s)
+#   
+# for(i in 2:500){
+#   otu_add = otu_ranked$otu[i] 
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix) 
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i 
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1 
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names') 
+#  
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.gf.p <- ggplot(BC_ranked[1:250,], 
+#                        aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() + 
+#   theme(strip.background = element_blank(), 
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text", 
+#            x = elbow + 10, 
+#            y = .15, 
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
+#   annotate(geom = "text", 
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
+#            y = .08, 
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_asv_gf.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_asv_gf.RDS")
 
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
-
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add = otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition, df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC = mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC = MeanBC/max(MeanBC))
-
-Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.gf.p <- ggplot(BC_ranked[1:250,], 
-                       aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+occ_abun.asv.gf <- readRDS("Data/16S/Core/occ_abun_asv_gf.RDS")
+BC_ranked.asv.gf <- readRDS("Data/16S/Core/BC_ranked_asv_gf.RDS")
 
 taxon <- as.matrix(rownames(otu))
 rownames(taxon) <- taxon
 spp <- t(otu)
 
 obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
-#sta.np = sncm.fit(spp, taxon, stats = TRUE, pool = NULL)
 
 (core.gf.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.gf[occ_abun.asv.gf$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.asv.gf[occ_abun.asv.gf$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -1731,22 +1808,24 @@ obs.np = sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Core: Grass + Forb", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.gf <- occ_abun$otu[occ_abun$fill == 'core']
+core.gf <- occ_abun.asv.gf$otu[occ_abun.asv.gf$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.asv.gf <- decostand(otu, method = "total", MARGIN = 2)
 
 
 ## divide core into neutral vs deterministic vs dispersal limited ##
-otu.mod.fg <- data.frame(otu = occ_abun[occ_abun$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun[occ_abun$fill == "core",]$otu))))
+otu.mod.fg <- data.frame(otu = occ_abun.asv.gf[occ_abun.asv.gf$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun.asv.gf[occ_abun.asv.gf$fill == "core",]$otu))))
 
 for(i in otu.mod.fg$otu){
-otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun.asv.gf[occ_abun.asv.gf$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
 
-otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun[occ_abun$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.fg[otu.mod.fg$otu == i,]$mod)
+otu.mod.fg[otu.mod.fg$otu == i,]$mod <- ifelse(log10(occ_abun.asv.gf[occ_abun.asv.gf$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.fg[otu.mod.fg$otu == i,]$mod)
 
 }
+
+rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum, gf.core)
 
 #### Comparison of Core ####
 library(VennDiagram)
@@ -1765,22 +1844,6 @@ nrow(core.f[core.f$OTU %in% core.gf$OTU,]) # n13: 178 forb OTUs in forbsxgrasses
 
 test <- core.g[core.g$OTU %in% core.gf$OTU,]
 nrow(core.f[core.f$OTU %in% test$OTU,]) # n123
-
-# core <- merge(core.gf, core.g, by = "OTU", all = T)
-# core <- merge(core, core.f, by = "OTU", all = T)
-# core <- merge(core, core.all, by = "OTU", all = T)
-
-# grid.newpage()  
-# draw.triple.venn(area1 = 241,   # Forb core                  
-#                  area2 = 309,   # Grass core
-#                  area3 = 219,   # g_x_f core
-#                  n12 = 206,
-#                  n23 = 201,
-#                  n13 = 178,
-#                  n123 = 168,
-#                  fill = c("pink", "green", "orange"),
-#                  lty = "blank",
-#                  category = c("Forbs", "Grasses", "Forbs & Grasses"))
 
 grid.newpage()  
 draw.triple.venn(area1 = 219,   # Forb core                  
@@ -1823,150 +1886,144 @@ draw.triple.venn(area1 = 93,   # Forb core
                  lty = "blank",
                  category = c("Forbs", "Grasses", "Forbs & Grasses"))
 
+
 #### Core Family (16s): All ####
 
-### CANT GET THIS TO WORK AS ON APRIL 29 ###
-#NOTE: Issues arise when all the packages are loaded, only packages needed are tidyverse, reshape2, and vegan
-
+# There is probably a much cleaner, fast to way to manipulate these files into the right format, but whatever 
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion))) # these were likely removed earlier but just to be sure
-core.all.ord <- tax_glom(ps.16s.nocontrols.rare, taxrank = "Family", NArm = FALSE)
+core.all.fam <- tax_glom(ps.16s.nocontrols.rare, taxrank = "Family", NArm = FALSE)
 
-test <- data.frame(otu = rownames(t(otu_table(core.all.ord))), t(otu_table(core.all.ord)))
-test2 <- t(data.frame(t(tax_table(core.all.ord))))
-test2 <- data.frame(otu = rownames(test2), test2)
+otu <- data.frame(otu = rownames(t(otu_table(core.all.fam))), t(otu_table(core.all.fam)))
+tax <- t(data.frame(t(tax_table(core.all.fam))))
+tax <- data.frame(otu = rownames(tax), tax)
 
-levels(test2$Family) <- c(levels(test2$Family), "Unk_p_Acido_c_Sub6", "Unk_c_Oxyphotobacteria", "Unk_c_Gammaproteobacteria", "Clostridiales_Family_XI", "Bacillales_Family_XI")
-test2[test2$Family == "Unknown_Family" & test2$Phylum == "Acidobacteria",]$Family <- "Unk_p_Acido_c_Sub6"
-test2[test2$Family == "Unknown_Family" & test2$Order == "Oxyphotobacteria_Incertae_Sedis",]$Family <- "Unk_c_Oxyphotobacteria"
-test2[test2$Family == "Unknown_Family" & test2$Order == "Gammaproteobacteria_Incertae_Sedis",]$Family <- "Unk_c_Gammaproteobacteria"
-test2[test2$Family == "Family_XI" & test2$Order == "Clostridiales",]$Family <-"Clostridiales_Family_XI"
-test2[test2$Family == "Family_XI" & test2$Order == "Bacillales",]$Family <- "Bacillales_Family_XI"
+tax$ord.fam <- paste(tax$Order, tax$Family, sep = ".")
 
-tmp <- merge(test2[,c(1,6)], test, by = "otu")
-#tmp <- filter(tmp, Family != "Unknown_Family", Family != "Family_XI")
-rownames(tmp) <- tmp$Family
-otu <- tmp[ , c(3:128)]
+otu <- merge(tax[,c(1,9)], otu, by = "otu")
+
+rownames(otu) <- otu$ord.fam
+otu <- otu[ , c(3:ncol(otu))]
 
 nReads <- 9434 
 map <- mapping
 
-otu_PA <- 1*((otu>0)==1)  # presence-absence data (if OTU is present (greater than 0) assign a 1)
-otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  # total number of sites that OTU is present in, divided by the number of sites  (occupancy calculation)
-otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     # relative abundance: For each column divide every entry by the column total (this give relative abundance  of each OTU per sample), then give calculate the mean relative abundance per OTU by calculating the mean of each row 
-occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') # combining occupancy and abundance; occupancy of an OTU is average number of samples an OTU occurs in, abundance is the average relative abundance of that OTU within a sample
+otu_PA <- 1*((otu>0)==1)  
+otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  
+otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)   
+occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-  group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2,
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
+# 
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] 
+# start_matrix <- as.matrix(otu[otu_start,]) 
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 
+# BCaddition <- rbind(BCaddition,df_s)
+#   
+# for(i in 2:299){
+#   otu_add = otu_ranked$otu[i] 
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix) 
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+#   df_a <- data.frame(x_names, x)
+#   names(df_a)[2] <- i 
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
+# }
+# 
+#  
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
+# df_full <- data.frame(x_names, x)
+# 
+# names(df_full)[2] <- i + 1 
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names') 
+#  
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() + 
+#   theme(strip.background = element_blank(), 
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text", 
+#            x = elbow + 10, 
+#            y = .15, 
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
+#   annotate(geom = "text", 
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
+#            y = .08, 
+#            label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
+# 
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_fam_all.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_fam_all.RDS")
 
-# otu_ranked <- occ_abun %>%
-#   #left_join(PresenceSum, by='otu') %>%
-#   transmute(otu=otu,
-#             rank = (otu_rel) + (otu_occ)) %>%
-#   arrange(desc(rank))
+occ_abun.fam.all <- readRDS("Data/16S/Core/occ_abun_fam_all.RDS")
+BC_ranked.fam.all <- readRDS("Data/16S/Core/BC_ranked_fam_all.RDS")
 
-BCaddition <- NULL
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
 
-otu_start <- otu_ranked$otu[1] # take the first ranked OTU
-start_matrix <- as.matrix(otu[otu_start,]) # extract that OTU's abundance per sample, this should be a one column vector
-#start_matrix <- t(start_matrix) # turns it into a one row vector, but mine already is because my original OTU table is a dataframe, theirs is already a matrix
-
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) #Error in combn(ncol(start_matrix), 2) : n < m (fixed above); take every combination of samples, and for each combination give the absolute difference in those two OTU abundances, sum them all (sum what?) and divide by 2* number of reads (because 2 samples); i have no idea what the sum function is doing given that inside sum there's only one number, this is relevant later I believe?
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 # i dont fully understand what this column is 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:299){
-  otu_add = otu_ranked$otu[i] # for the top 500 ranked OTUs, starting with the second one beacuse we computed the first previously
-  add_matrix <- as.matrix(otu[otu_add,])
-  #add_matrix <- t(add_matrix) # again dont need this because its a dataframe
-  start_matrix <- rbind(start_matrix, add_matrix) # bind together the next ranked OTU with the previously ranked OTU
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) # and compute the difference again
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
-  df_a <- data.frame(x_names, x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-# and this code does it for the last one, I think 
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
-df_full <- data.frame(x_names, x)
-#names(df_full)[2] <- length(rownames(otu)) # this assumes we are looking at all OTUs, not just the top 500 ranked, right?
-names(df_full)[2] <- i + 1 #I think
-BCfull <- left_join(BCaddition, df_full, by = 'x_names') # each column is an OTU, each row a comparison of two samples, so the first (non-sample) column is the comparison of the first ranked OTU's abundance between the two samples specified, the second column is the difference in the second rank OTU's abundance between teh two samples specified and so on all the way until the 500th ranked OTU; it does this for each combination of samples
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC = mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC = MeanBC/max(MeanBC))
-
-Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
-
-# Models for the whole community
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = FALSE, pool = NULL)
-#sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+obs.np <- sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
 
 (core.all.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.all[occ_abun.fam.all$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.all[occ_abun.fam.all$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -1976,11 +2033,11 @@ obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = FALSE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
   labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.all <- occ_abun$otu[occ_abun$fill == 'core']
+core.all <- occ_abun.fam.all$otu[occ_abun.fam.all$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.fam.all <- decostand(otu, method = "total", MARGIN = 2)
 
-plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>% # this is changing my sample names for some reason, replacing the "-" with a "."
+plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun.fam.all)), otu_relabun.fam.all) %>% 
   gather(SampleID.occ, relabun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
   left_join(otu_ranked, by = 'otu') %>%
@@ -1990,19 +2047,34 @@ plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun)), otu_relabun) %>% 
             coreSite = ifelse(plot_freq == 1, 1, 0), 
             detect = ifelse(plot_freq > 0, 1, 0))
 
-plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:78]) # 1: # OTUs before cutoff of last 2% increase, but there are only 96 in the core so why up to 205? does this just rank them
+plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:78]) 
 
 (all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
   geom_bar(stat = 'identity', position = 'dodge') +
   coord_flip() +
   scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
   theme(axis.text = element_text(size = 6)) +
-  labs(x = 'Ranked OTUs', y = 'Occupancy by site'))
+  labs(x = 'Ranked OTUs', y = 'Occupancy by site')) # everything is in like 90% of samples
+
+otu_RA_core.all <- data.frame(otu = as.factor(row.names(otu_relabun.fam.all)), otu_relabun.fam.all) %>%
+  filter(otu %in% plotDF$otu)
+
 
 #### Core Family (16s): Grass ####
 grass.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Grass")
 
-otu <- as.data.frame(t(otu_table(grass.core)))
+core.g.ord <- tax_glom(grass.core, taxrank = "Family", NArm = FALSE)
+
+otu <- data.frame(otu = rownames(t(otu_table(core.g.ord))), t(otu_table(core.g.ord)))
+tax <- t(data.frame(t(tax_table(core.g.ord))))
+tax <- data.frame(otu = rownames(tax), tax)
+
+tax$ord.fam <- paste(tax$Order, tax$Family, sep = ".")
+
+otu <- merge(tax[,c(1,9)], otu, by = "otu")
+
+rownames(otu) <- otu$ord.fam
+otu <- otu[ , c(3:ncol(otu))]
 
 nReads <- 9434 
 
@@ -2011,111 +2083,120 @@ otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
 otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
+map <- mapping
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-  group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% # 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
 
 
-BCaddition <- NULL
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1]
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads))
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1
+# BCaddition <- rbind(BCaddition,df_s)
+# 
+# for(i in 2:299){
+#   otu_add=otu_ranked$otu[i]
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix)
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1
+# BCfull <- left_join(BCaddition,df_full, by = 'x_names')
+# 
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>%
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC=mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC=MeanBC/max(MeanBC))
+# 
+# Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0, (Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.g.p <- ggplot(BC_ranked[1:350,],
+#                        aes(x = factor(BC_ranked$rank[1:350], levels = BC_ranked$rank[1:450]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() +
+#   theme(strip.background = element_blank(),
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text",
+#            x = elbow + 10,
+#            y = .15,
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +
+#   annotate(geom = "text",
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4,
+#            y = .08,
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_fam_g.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_fam_g.RDS")
 
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
+occ_abun.fam.g <- readRDS("Data/16S/Core/occ_abun_fam_g.RDS")
+BC_ranked.fam.g <- readRDS("Data/16S/Core/BC_ranked_fam_g.RDS")
 
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add=otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC=mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC=MeanBC/max(MeanBC))
-
-Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0, (Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.g.p <- ggplot(BC_ranked[1:350,], 
-                       aes(x = factor(BC_ranked$rank[1:350], levels = BC_ranked$rank[1:450]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
-
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats=FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+spp <- t(otu)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+obs.np = sncm.fit(spp, taxon, stats=FALSE, pool = NULL)
+#sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
 
 (core.g.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.g[occ_abun.fam.g$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.g[occ_abun.fam.g$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -2123,16 +2204,26 @@ sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Fam Core: Grasses", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.g <- occ_abun$otu[occ_abun$fill == 'core']
+core.g <- occ_abun.fam.g$otu[occ_abun.fam.g$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.fam.g <- decostand(otu, method = "total", MARGIN = 2)
 
 #### Core Family (16s): Forb ####
 forb.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "Forb")
+core.f.fam <- tax_glom(forb.core, taxrank = "Family", NArm = FALSE)
 
-otu <- as.data.frame(t(otu_table(forb.core)))
+otu <- data.frame(otu = rownames(t(otu_table(core.f.fam))), t(otu_table(core.f.fam)))
+tax <- t(data.frame(t(tax_table(core.f.fam))))
+tax <- data.frame(otu = rownames(tax), tax)
+
+tax$ord.fam <- paste(tax$Order, tax$Family, sep = ".")
+
+otu <- merge(tax[,c(1,9)], otu, by = "otu")
+
+rownames(otu) <- otu$ord.fam
+otu <- otu[ , c(3:ncol(otu))]
 
 nReads <- 9434 
 
@@ -2141,111 +2232,117 @@ otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
 otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
-
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%
   group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  summarise(sumF = sum(plot_freq),
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
 
 
-BCaddition <- NULL
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] 
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 
+# BCaddition <- rbind(BCaddition,df_s)
+#   
+# for(i in 2:299){
+#   otu_add=otu_ranked$otu[i] 
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix) 
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i 
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1 
+# BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
+#  
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC=mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC=MeanBC/max(MeanBC))
+# 
+# Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase)+1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.f.p <- ggplot(BC_ranked[1:250,], 
+#                        aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() + 
+#   theme(strip.background = element_blank(), 
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text", 
+#            x = elbow + 50, 
+#            y = .15, 
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
+#   annotate(geom = "text", 
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 50, 
+#            y = .08, 
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_fam_f.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_fam_f.RDS")
 
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
+occ_abun.fam.f <- readRDS("Data/16S/Core/occ_abun_fam_f.RDS")
+BC_ranked.fam.f <- readRDS("Data/16S/Core/BC_ranked_fam_f.RDS")
 
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add=otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition,df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))),t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC=mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC=MeanBC/max(MeanBC))
-
-Increase <- BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase)+1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.f.p <- ggplot(BC_ranked[1:250,], 
-                       aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 50, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 50, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
-
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+spp <- t(otu)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+obs.np <- sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
 
 (core.f.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.f[occ_abun.fam.f$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.f[occ_abun.fam.f$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -2253,16 +2350,26 @@ sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Family Core: Forbs", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.f <- occ_abun$otu[occ_abun$fill == 'core']
+core.f <- occ_abun.fam.f$otu[occ_abun.fam.f$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.fam.f <- decostand(otu, method = "total", MARGIN = 2)
 
 #### Core Family (16s): Grass x Forb ####
 gf.core <- subset_samples(ps.16s.nocontrols.rare, FunGroup == "grass_x_forb")
+core.gf.fam <- tax_glom(gf.core, taxrank = "Family", NArm = FALSE)
 
-otu <- as.data.frame(t(otu_table(gf.core)))
+otu <- data.frame(otu = rownames(t(otu_table(core.gf.fam))), t(otu_table(core.gf.fam)))
+tax <- t(data.frame(t(tax_table(core.gf.fam))))
+tax <- data.frame(otu = rownames(tax), tax)
+
+tax$ord.fam <- paste(tax$Order, tax$Family, sep = ".")
+
+otu <- merge(tax[,c(1,9)], otu, by = "otu")
+
+rownames(otu) <- otu$ord.fam
+otu <- otu[ , c(3:ncol(otu))]
 
 nReads <- 9434 
 
@@ -2271,111 +2378,117 @@ otu_occ <- rowSums(otu_PA)/ncol(otu_PA)
 otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)     
 occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
 
-# for some reason this code replaces the - with a . in our sample names, so creating a new column to make it run (this is used later in PlotDF)
 map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
-
 
 PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
   gather(SampleID.occ, abun, -otu) %>%
   left_join(map, by = 'SampleID.occ') %>%
-  group_by(otu, FunGroup) %>% # first try it by FunGroup?
-  summarise(plot_freq = sum(abun > 0)/length(abun), # number of samples within a treatment where that OTU was present (greater than 0) divided by total number of samples within that treatment; so this is 1 if the OTU was present in every sample in that treatment and lower otherwise; so basically it's the percentage of subsamples within a treatment that OTU occurs in
-            coreTrt = ifelse(plot_freq == 1, 1, 0), # Core Treatment = 1 if that OTU was present in every sample within a Treatment, 0 otherwise
-            detect = ifelse(plot_freq > 0, 1, 0)) %>%    # 1 if that OTU was detected at all within that Treatment and 0 if not
-  group_by(otu) %>% # group by OTU
-  summarise(sumF = sum(plot_freq), # frequency of an OTU across treatments, so with 3 treatments (grass, forb, and grassxforb), a 3 would indicate that this OTU occurs in every treatment and every subsample of that treatment
-            sumG = sum(coreTrt), # total number of Treatments where that OTU was present in every subsample
-            nS = length(FunGroup)*2, # total number of Treatments (times 2) = 6
-            Index = (sumF + sumG)/nS) # calculating weighting Index based on number of Treatments detected
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
 otu_ranked <- occ_abun %>%
-  left_join(PresenceSum, by = 'otu') %>% # why even need occ_abun here?
+  left_join(PresenceSum, by = 'otu') %>% 
   transmute(otu = otu,
             rank = Index) %>%
-  arrange(desc(rank))
+  arrange(dplyr::desc(rank))
 
 
-BCaddition <- NULL
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1]
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads))
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1
+# BCaddition <- rbind(BCaddition,df_s)
+# 
+# for(i in 2:299){
+#   otu_add = otu_ranked$otu[i]
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix)
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
+#   df_a <- data.frame(x_names,x)
+#   names(df_a)[2] <- i
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
+# df_full <- data.frame(x_names, x)
+# names(df_full)[2] <- i + 1
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names')
+# 
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>%
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.gf.p <- ggplot(BC_ranked[1:250,],
+#                        aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() +
+#   theme(strip.background = element_blank(),
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text",
+#            x = elbow + 10,
+#            y = .15,
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +
+#   annotate(geom = "text",
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4,
+#            y = .08,
+#            label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/16S/Core/occ_abun_fam_gf.RDS")
+# saveRDS(BC_ranked, "Data/16S/Core/BC_ranked_fam_gf.RDS")
 
-otu_start <- otu_ranked$otu[1] 
-start_matrix <- as.matrix(otu[otu_start,])
+occ_abun.fam.gf <- readRDS("Data/16S/Core/occ_abun_fam_gf.RDS")
+BC_ranked.fam.gf <- readRDS("Data/16S/Core/BC_ranked_fam_gf.RDS")
 
-x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
-x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-df_s <- data.frame(x_names,x)
-names(df_s)[2] <- 1 
-BCaddition <- rbind(BCaddition,df_s)
-  
-for(i in 2:500){
-  otu_add = otu_ranked$otu[i] 
-  add_matrix <- as.matrix(otu[otu_add,])
-  start_matrix <- rbind(start_matrix, add_matrix) 
-  x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads)) 
-  x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse=' - '))
-  df_a <- data.frame(x_names,x)
-  names(df_a)[2] <- i 
-  BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))  
-}
-
-
-x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]]-otu[,x[2]]))/(2*nReads))
-x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse=' - '))
-df_full <- data.frame(x_names, x)
-names(df_full)[2] <- i + 1 
-BCfull <- left_join(BCaddition, df_full, by = 'x_names') 
- 
-rownames(BCfull) <- BCfull$x_names
-temp_BC <- BCfull
-temp_BC$x_names <- NULL
-temp_BC_matrix <- as.matrix(temp_BC)
-
-BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>% 
-  gather(comparison, BC, -rank) %>%
-  group_by(rank) %>%
-  summarise(MeanBC = mean(BC)) %>%
-  arrange(-desc(MeanBC)) %>%
-  mutate(proportionBC = MeanBC/max(MeanBC))
-
-Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
-increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
-BC_ranked <- left_join(BC_ranked, increaseDF)
-BC_ranked <- BC_ranked[-nrow(BC_ranked),]
-
-rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
-
-BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
-
-elbow <- which.max(BC_ranked$fo_diffs)
-
-(elbow.gf.p <- ggplot(BC_ranked[1:250,], 
-                       aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
-  geom_point(aes(y = proportionBC)) +
-  theme_classic() + 
-  theme(strip.background = element_blank(), 
-        axis.text.x = element_text(size = 7, angle = 45)) +
-  geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
-  geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])), 
-             lty = 3, col = 'blue', cex = .5) +
-  labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
-  annotate(geom = "text", 
-           x = elbow + 10, 
-           y = .15, 
-           label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +    
-  annotate(geom = "text", 
-           x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4, 
-           y = .08, 
-           label = paste("Last 2% increase (", last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
-
-occ_abun$fill <- 'no'
-occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)]))]] <- 'core'
-
-obs.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats=FALSE, pool = NULL)
-sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
+spp <- t(otu)
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+obs.np <- sncm.fit(spp, taxon, stats = FALSE, pool = NULL)
 
 (core.gf.p <- ggplot() +
-  geom_point(data = occ_abun[occ_abun$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.gf[occ_abun.fam.gf$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'white', alpha = .2) +
-  geom_point(data = occ_abun[occ_abun$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+  geom_point(data = occ_abun.fam.gf[occ_abun.fam.gf$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
              pch = 21, fill = 'blue', size = 1.8) +
   geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
             size = 1, color = 'black', alpha = .25) +
@@ -2383,11 +2496,11 @@ sta.np = sncm.fit(t(otu), as.vector(rownames(otu)), stats = TRUE, pool = NULL)
             color = 'black', lty = 'twodash', size = 1, alpha = .25)+
   geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
             color = 'black', lty = 'twodash', size = 1, alpha = .25) +
-  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+  labs(title = "16S Fam Core: grass x forb", x = "log10(mean relative abundance)", y = "Occupancy"))
 
-core.gf <- occ_abun$otu[occ_abun$fill == 'core']
+core.gf <- occ_abun.fam.gf$otu[occ_abun.fam.gf$fill == 'core']
 
-otu_relabun <- decostand(otu, method = "total", MARGIN = 2)
+otu_relabun.fam.gf <- decostand(otu, method = "total", MARGIN = 2)
 
 #### Comparison of Core ####
 library(VennDiagram)
@@ -2400,56 +2513,194 @@ core.all <- data.frame(FunGroup = "All", OTU = core.all)
 # grass = 2
 # grass x forb = 3
 
-nrow(core.f[core.f$OTU %in% core.g$OTU,]) # n12: 206 forb OTUs also in grass
-nrow(core.g[core.g$OTU %in% core.gf$OTU,]) # n23: 201 grass OTUs in forbsxgrasses
-nrow(core.f[core.f$OTU %in% core.gf$OTU,]) # n13: 178 forb OTUs in forbsxgrasses
+nrow(core.f[core.f$OTU %in% core.g$OTU,]) # n12: 61 forb OTUs also in grass
+nrow(core.g[core.g$OTU %in% core.gf$OTU,]) # n23: 48 grass OTUs in forbsxgrasses
+nrow(core.f[core.f$OTU %in% core.gf$OTU,]) # n13: 52 forb OTUs in forbsxgrasses
 
 test <- core.g[core.g$OTU %in% core.gf$OTU,]
-nrow(core.f[core.f$OTU %in% test$OTU,]) # n123
-
-# core <- merge(core.gf, core.g, by = "OTU", all = T)
-# core <- merge(core, core.f, by = "OTU", all = T)
-# core <- merge(core, core.all, by = "OTU", all = T)
-
-# grid.newpage()  
-# draw.triple.venn(area1 = 241,   # Forb core                  
-#                  area2 = 309,   # Grass core
-#                  area3 = 219,   # g_x_f core
-#                  n12 = 206,
-#                  n23 = 201,
-#                  n13 = 178,
-#                  n123 = 168,
-#                  fill = c("pink", "green", "orange"),
-#                  lty = "blank",
-#                  category = c("Forbs", "Grasses", "Forbs & Grasses"))
+nrow(core.f[core.f$OTU %in% test$OTU,]) # n123 46
 
 grid.newpage()  
-draw.triple.venn(area1 = 219,   # Forb core                  
-                 area2 = 267,   # Grass core
-                 area3 = 212,   # g_x_f core
-                 n12 = 180,
-                 n23 = 188,
-                 n13 = 168,
-                 n123 = 154,
+draw.triple.venn(area1 = 82,   # Forb core                  
+                 area2 = 80,   # Grass core
+                 area3 = 55,   # g_x_f core
+                 n12 = 61,
+                 n23 = 48,
+                 n13 = 52,
+                 n123 = 46,
                  fill = c("pink", "green", "orange"),
                  lty = "blank",
                  category = c("Forbs", "Grasses", "Forbs & Grasses"))
-# grasses have a bigger core, but forbs are more diverse
-#### Network co-occurence ####
 
 
+# what are the new families that don't show up in grasses or forbs?
+core.gf[!core.gf$OTU %in% core.f$OTU,]
 
+#### Core ASV (ITS): All ####
+ps.ITS.nocontrols.rare <- subset_samples(ps.ITS.nocontrols.rare, !(is.na(Competion))) # these were likely removed earlier but just to be sure
+otu <- as.data.frame(t(otu_table(ps.ITS.nocontrols.rare)))
 
+nReads <- 7557
+map <- mapping
 
+otu_PA <- 1*((otu>0)==1)  
+otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  
+otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)   
+occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
+map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
 
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% 
+  summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%   
+  group_by(otu) %>% 
+  summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2, 
+            Index = (sumF + sumG)/nS) 
 
+otu_ranked <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% 
+  transmute(otu = otu,
+            rank = Index) %>%
+  arrange(dplyr::desc(rank))
+# 
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1] 
+# start_matrix <- as.matrix(otu[otu_start,]) 
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads)) 
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1 
+# BCaddition <- rbind(BCaddition,df_s)
+# 
+# for(i in 2:500){
+#   otu_add = otu_ranked$otu[i] 
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix) 
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+#   df_a <- data.frame(x_names, x)
+#   names(df_a)[2] <- i
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
+# df_full <- data.frame(x_names, x)
+# 
+# names(df_full)[2] <- i + 1
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names') 
+# 
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>%
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() +
+#   theme(strip.background = element_blank(),
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text",
+#            x = elbow + 10,
+#            y = .15,
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +
+#   annotate(geom = "text",
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4,
+#            y = .08,
+#            label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
+# 
+# saveRDS(occ_abun, "Data/ITS/Core/occ_abun_asv_all.RDS")
+# saveRDS(BC_ranked, "Data/ITS/Core/BC_ranked_asv_all.RDS")
 
+occ_abun.asv.all <- readRDS("Data/ITS/Core/occ_abun_asv_all.RDS")
+BC_ranked.asv.all <- readRDS("Data/ITS/Core/BC_ranked_asv_all.RDS")
 
+# Models for the whole community
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+obs.np <- sncm.fit(spp = spp, taxon = taxon, stats = FALSE, pool = NULL)
 
+ggplot() +
+  geom_point(data = occ_abun.asv.all[occ_abun.asv.all$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+             pch = 21, fill = 'white', alpha = .2) +
+  geom_point(data = occ_abun.asv.all[occ_abun.asv.all$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+             pch = 21, fill = 'blue', size = 1.8) +
+  geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
+            size = 1, color = 'black', alpha = .25) +
+  geom_line(data = obs.np, aes(y = pred.upr, x = log10(p)), 
+            color = 'black', lty = 'twodash', size = 1, alpha = .25)+
+  geom_line(data = obs.np, aes(y = pred.lwr, x = log10(p)), 
+            color = 'black', lty = 'twodash', size = 1, alpha = .25) +
+  labs(title = "ITS Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy")
 
+core.all <- occ_abun.asv.all$otu[occ_abun.asv.all$fill == 'core']
 
+otu_relabun.asv.all <- decostand(otu, method = "total", MARGIN = 2)
 
+plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun.asv.all)), otu_relabun.asv.all) %>%
+  gather(SampleID.occ, relabun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  left_join(otu_ranked, by = 'otu') %>%
+  filter(otu %in% core.all) %>% 
+  group_by(FunGroup, otu) %>%
+  summarise(plot_freq = sum(relabun>0)/length(relabun), 
+            coreSite = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0))
 
+plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:187])
+
+(all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
+  geom_bar(stat = 'identity', position = 'dodge') +
+  coord_flip() +
+  scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
+  theme(axis.text = element_text(size = 6)) +
+  labs(x = 'Ranked OTUs', y = 'Occupancy by sample'))
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.all <- data.frame(otu = occ_abun.asv.all[occ_abun.asv.all$fill == "core",]$otu, mod = rep(NA, 187))
+
+for(i in otu.mod.all$otu){
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.asv.all[occ_abun.asv.all$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.asv.all[occ_abun.asv.all$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.all[otu.mod.all$otu == i,]$mod)
+
+}
+
+rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum)
 
 
 #### Differential abundance analysis: 16s ####
@@ -2564,7 +2815,7 @@ write.csv(df.res, "Data/16s.ddseq.treatment.csv")
 ## 16S: G v F ##
 #make "grass" the result to compare to
 
-sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.16s.nocontrols.nobss)$FunGroup, "Grass")
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.16s.nocontrols.nobss)$FunGroup), "Grass")
 
 treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
 
@@ -2590,6 +2841,7 @@ for(i in contrasts) {
   res <- results(dds.16s.treat, contrast = contrast.list[[i]], pAdjustMethod = "bonferroni")
   #filter results by p-value
   res.alpha <- res[which(res$padj < alpha), ]
+  
   #Bind taxonomy to results
   res.alpha.tax = cbind(as(res.alpha, "data.frame"), as(tax_table(ps.16s.nocontrols.nobss)[rownames(res.alpha), ], "matrix"))
   #tidy results 
@@ -2611,7 +2863,7 @@ for(i in contrasts) {
 
 #plot results
 
-plot.list$F.G+ plot.list$FG.G 
+plot.list$F.G + plot.list$FG.G 
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
@@ -2622,7 +2874,7 @@ write.csv(df.res, "Data/16s.ddseq.fungroup.csv")
 
 
 #same as above but now with "forb" as the comparison
-sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.16s.nocontrols.nobss)$FunGroup, "Forb")
+sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.16s.nocontrols.nobss)$FunGroup), "Forb")
 
 treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
 
@@ -2682,6 +2934,13 @@ write.csv(df.res, "Data/16s.ddseq.fungroup.v2.csv")
 # Does this suggest that forbs shift more than grasses during competion?
 # Or that grasses are stronger drivers of rhizosphere communities?
 
+# try to extract normalized data for use in models
+dds.16s.treat = DESeq(treat.16s, test = "Wald", fitType = "parametric")
+vsd.blind <- varianceStabilizingTransformation(dds.16s.treat , blind = TRUE)
+norm.blind <- assay(vsd.blind)
+norm.count <- counts(dds.16s.treat, normalized = TRUE)
+
+norm.count <- data.frame(cbind(SampleID_Fix = rownames(norm.count), norm.count))
 
 ## 16S: Competition ##
 ps.16s.nocontrols.comp <- subset_samples(ps.16s.nocontrols, !(is.na(Competion)))
@@ -3828,3 +4087,162 @@ results.train.fg.its <- predict(st.fg.its, alpha1=alpha1, alpha2=alpha2)
 # plot results
 labels.fg.its <- sprintf('%s %s', envs.fg.its,desc)
 plot(results.fg.its, labels.fg.its[test.ix.fg.its], type='pie')
+
+#### SEM: Shannon ####
+GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = c("Observed","Shannon", "InvSimpson"))
+GL_Alpha2 <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
+
+GL_Alpha2 <- filter(GL_Alpha2, !is.na(Competion))
+
+hist(log(GL_Alpha2$Shannon + 1))
+m.sha <- lmer(log(Shannon + 1) ~ FunGroup + (1|Treatment), data = GL_Alpha2[GL_Alpha2$Shannon > 5.7,])
+plot(fitted(m.sha), resid(m.sha))
+qqnorm(resid(m.sha))
+qqline(resid(m.sha))
+summary(m.sha)
+
+
+m.b <- lmer(log(forb.wt) ~ Shannon + FunGroup + (1 | forb), data = GL_Alpha2[GL_Alpha2$Shannon > 5.7 & GL_Alpha2$forb != "none",])
+plot(fitted(m.b), resid(m.b))
+qqnorm(resid(m.b))
+qqline(resid(m.b))
+summary(m.b)
+
+GL_Alpha2$shannon.log <- log(GL_Alpha2$Shannon)
+GL_Alpha2$forb.wt.log <- log(GL_Alpha2$forb.wt)
+
+psem.16S <- psem(
+  
+ lme(shannon.log ~ FunGroup, random = ~ 1 | Treatment, data = GL_Alpha2[GL_Alpha2$forb != "none",], na.action = na.omit),
+ 
+ lme(forb.wt.log ~ shannon.log + FunGroup, random = ~ 1 | Treatment, data = GL_Alpha2[GL_Alpha2$forb != "none",], na.action = na.omit)
+  
+  )
+
+summary(psem.16S, .progressBar = FALSE) 
+
+
+# reformatting 
+# GL_Alpha2 <- GL_Alpha2[,c(2, 4, 9, 16, 12, 30, 31, 33, 34, 35, 38)]
+# 
+# GL_Alpha2.spp.f <- filter(GL_Alpha2[,-c(6,8,9)], Competion == "SingleSpecies", FunGroup == "Forb")
+# names(GL_Alpha2.spp.f)[6] <- "Species_Name"
+# 
+# GL_Alpha2.spp.g <- filter(GL_Alpha2[,-c(7,8,9)], Competion == "SingleSpecies", FunGroup == "Grass")
+# names(GL_Alpha2.spp.g)[6] <- "Species_Name"
+# 
+# GL_Alpha2.com.f <- filter(GL_Alpha2[,-c(6, 9, 10)], Competion == "TwoSpecies")
+# names(GL_Alpha2.com.f)[6] <- "Species_Name"
+# names(GL_Alpha2.com.f)[7] <- "Weight.g"
+# 
+# GL_Alpha2.com.g <- filter(GL_Alpha2[,-c(7, 8, 10)], Competion == "TwoSpecies")
+# names(GL_Alpha2.com.g)[6] <- "Species_Name"
+# names(GL_Alpha2.com.g)[7] <- "Weight.g"
+# 
+# GL_Alpha2 <- rbind(GL_Alpha2.spp.f, GL_Alpha2.spp.g, GL_Alpha2.com.f, GL_Alpha2.com.g)
+# 
+# GL_Alpha2$shannon.log <- log(GL_Alpha2$Shannon)
+# GL_Alpha2$weight.log <- log(GL_Alpha2$Weight.g)
+# 
+# GL_Alpha2 <- filter(GL_Alpha2, !is.na(Weight.g))
+# 
+# psem.16S <- psem(
+#   
+#  lme(shannon.log ~ FunGroup, random = ~ 1 | Species_Name, data = GL_Alpha2),
+#  
+#  lme(weight.log ~ shannon.log + FunGroup, random = ~ 1 | Species_Name, data = GL_Alpha2)
+#   
+#   )
+# 
+# summary(psem.16S, .progressBar = FALSE) 
+# 
+# m.wt <- lme(weight.log ~ Shannon * FunGroup, random = ~ 1 | Treatment, data = GL_Alpha2)
+# plot(fitted(m.wt), resid(m.wt))
+# qqnorm(resid(m.wt))
+# qqline(resid(m.wt))
+# summary(m.wt)
+
+#### SEM: ASVs from grasses in competition? ####
+
+tax.16s.asv <- data.frame(ASV = as.factor(row.names(tax.16s)), tax.16s)
+
+ASVs <- df.res$ASV #SV645
+
+ps.16s.nocontrols.rare.RA <- transform_sample_counts(ps.16s.nocontrols.rare, function(x) x / sum(x))
+
+df_ASV <- psmelt(ps.16s.nocontrols.rare.RA)
+
+#df_ASV <- filter(df_ASV, OTU %in% ASVs)
+
+df_ASV.sum <- df_ASV %>%
+  group_by(SampleID_Fix, Order) %>%
+  summarize(Abundance = sum(Abundance)) %>%
+  left_join(mapping, by = "SampleID_Fix") %>%
+  filter(Competion == "SingleSpecies", forb != "none") %>%
+  group_by(forb, Order) %>%
+  summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
+  left_join(df_ASV, by = c("forb", "Order")) %>%
+  filter(Competion == "TwoSpecies") %>%
+  mutate(weight.d = (forb.wt - avg.wt)/avg.wt, Order.d = (Abundance - avg.RA)/avg.RA)
+
+
+
+
+hist(log(df_ASV2[df_ASV2$Order == "Betaproteobacteriales",]$forb.wt + .01))
+
+hist(log(df_ASV2[df_ASV2$Order == "Betaproteobacteriales" & df_ASV2$FunGroup != "Grass",]$Abundance + 0.0004))
+
+ggplot(df_ASV2[df_ASV2$Order == "Betaproteobacteriales" & df_ASV2$FunGroup != "Grass",], aes(x = log(Abundance +  + 0.0004), y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+m.b <- lmer(log(forb.wt + 0.01) ~ log(Abundance + 0.0004) + FunGroup + (1|forb), data = df_ASV2[df_ASV2$Order == "Betaproteobacteriales",])
+plot(fitted(m.b), resid(m.b))
+qqnorm(resid(m.b))
+qqline(resid(m.b))
+summary(m.b)
+
+test <- filter(df_ASV2, FunGroup != "Grass", Order == "Betaproteobacteriales", SampleID != "GLM_0202")
+
+test$Abun.log <- log(test$Abundance + 0.0004)
+test$forb.wt.log <- log(test$forb.wt + 0.01)
+
+psem.16S <- psem(
+ 
+ lme(forb.wt.log ~ Abun.log + FunGroup, random =  ~ 1 | forb, na.action = na.omit, data = test),
+ 
+ lme(Abun.log ~ FunGroup, random =  ~ 1 | forb, na.action = na.omit, data = test)
+  
+  )
+
+summary(psem.16S, .progressBar = FALSE) 
+
+psem.16S <- psem(
+  
+  lmer(forb.wt.log ~ Abun.log + FunGroup + (1 | forb), data = test),
+  
+  lmer(Abun.log ~ FunGroup + (1 | forb), data = test)
+ 
+  )
+
+ord.ax <- data.frame(cbind(SampleID_Fix = rownames(ps.rare.ord.tr$vectors), ax1 = ps.rare.ord.tr$vectors[,1]))
+ord.ax$ax1 <- as.numeric(as.character(ord.ax$ax1))
+ord.ax <- merge(ord.ax, mapping, by = "SampleID_Fix")
+
+hist(ord.ax$ax1)
+m.b <- lmer(log(forb.wt) ~ FunGroup + ax1 + (1|forb), data = ord.ax[ord.ax$FunGroup != "Grass",])
+plot(fitted(m.b), resid(m.b))
+qqnorm(resid(m.b))
+qqline(resid(m.b))
+summary(m.b)
+
+
+psem.16S <- psem(
+  
+ lmer(ax1 ~ FunGroup + (1 | forb), data = ord.ax[ord.ax$FunGroup != "Grass",], na.action = na.omit),
+ 
+ lmer(forb.wt.log ~ ax1 + FunGroup + (1 | forb), data = df_ASV[df_ASV$forb != "none" & df_ASV$OTU == "SV645",], na.action = na.omit)
+  
+  )
+
+summary(psem.16S, .progressBar = FALSE) 
