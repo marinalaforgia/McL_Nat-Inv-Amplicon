@@ -272,6 +272,8 @@ permutest(C, permutations = 9999) # spread doesnt vary between forbs species
 ### 
 # Grass species
 ###
+ps.16s.nocontrols.rare.spp.g <- subset_samples(ps.16s.nocontrols.rare.spp, forb == "none")
+
 ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.g, "PCoA", "wunifrac")
 
 plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, shape = "Plant SpeciesSampled", color = "PlantSpeciesSampled") +
@@ -279,7 +281,6 @@ plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, shape = "P
   geom_point(size = 3) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) 
 
-ps.16s.nocontrols.rare.spp.g <- subset_samples(ps.16s.nocontrols.rare.spp, forb == "none")
 
 DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.g, method = "wunifrac", type = "samples")
 
@@ -288,15 +289,34 @@ adonis(DistWU.Spp ~ PlantSpeciesSampled, as(sample_data(ps.16s.nocontrols.rare.s
 C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame")$PlantSpeciesSampled)
 permutest(C, permutations = 9999)
 
+pair.spp.g <- adonis.pair(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame")$grass, nper = 9999, corr.method = "BH")
+kable(pair.spp.g) # TACA sig diff but also probably dont have enough samples to really do this
+
+
+
 #### Ordination (16S): Competition ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
 #ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, forb != "none")
+
+sample_data(ps.16s.nocontrols.rare)$FunGroup <- recode(sample_data(ps.16s.nocontrols.rare)$FunGroup, grass_x_forb = "Competition")
+
+sample_data(ps.16s.nocontrols.rare)$FunGroup <- factor(sample_data(ps.16s.nocontrols.rare)$FunGroup, levels = c("Forb", "Grass", "Competition"))
+  
 ps.rare.ord.tr <- ordinate(ps.16s.nocontrols.rare, "PCoA", "wunifrac")
 
-plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "FunGroup", shape = "Competion") +
-  theme_bw(base_size = 20) +
-  geom_point(size = 3) +
-  stat_ellipse(aes(group = FunGroup)) 
+ord.plot <- plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "FunGroup", shape = "FunGroup") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = FunGroup)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(.82, .82),
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  ) +
+  scale_color_manual(values = c("magenta4", "cyan4" ,"goldenrod3"))
+
+ggsave("Figures/ord-plot.jpg", ord.plot, width = 5, height = 4, units = "in", dpi = 600)
 
 DistWU <- phyloseq::distance(ps.16s.nocontrols.rare, method = "wunifrac", type = "samples")
 
@@ -318,12 +338,13 @@ permutest(C, permutations = 9999) # spread doesnt vary between treatments
 C <- betadisper(DistWU, as(sample_data(ps.16s.nocontrols.rare), "data.frame")$FunGroup)
 permutest(C, permutations = 9999) # spread doesnt vary between treatments
 
-pair.am2 <- adonis.pair(vegdist(DistWU), as(sample_data(ps.16s.nocontrols.rare), "data.frame")$TreatmentName, corr.method = "none")
+pair.am2 <- adonis.pair(DistWU, as(sample_data(ps.16s.nocontrols.rare), "data.frame")$TreatmentName, corr.method = "none")
 pair.am2 <- pair.am2[-c(8,7),1:6]
 pair.am2 <- cbind(pair.am2, p.val.corr = p.adjust(pair.am2$P.value, method = "BH", n = length(pair.am2$P.value)))
 kable(pair.am2)
 
-pair.am3 <- adonis.pair(vegdist(DistWU), as(sample_data(ps.16s.nocontrols.rare), "data.frame")$FunGroup, corr.method = "BH")
+#sample_data(ps.16s.nocontrols.rare)$FunGroup <- as.factor(sample_data(ps.16s.nocontrols.rare)$FunGroup)
+pair.am3 <- adonis.pair(DistWU, as(sample_data(ps.16s.nocontrols.rare), "data.frame")$FunGroup, nper = 9999, corr.method = "BH")
 kable(pair.am3)
 
 #### Ordination (ITS): Soil v Rhiz ####
@@ -400,10 +421,25 @@ GL_pcoa <- ordinate(
   method = "PCoA", 
   distance = "bray")
 
-plot_ordination(physeq = ps.ITS.nocontrols.rare, ordination = GL_pcoa, color = "FunGroup", shape = "Competion") +
-  geom_point(size = 6) + 
-  theme(text = element_text(size=28)) +
-  stat_ellipse(aes(group = FunGroup)) 
+
+sample_data(ps.ITS.nocontrols.rare)$FunGroup <- recode(sample_data(ps.ITS.nocontrols.rare)$FunGroup, grass_x_forb = "Competition")
+
+sample_data(ps.ITS.nocontrols.rare)$FunGroup <- factor(sample_data(ps.ITS.nocontrols.rare)$FunGroup, levels = c("Forb", "Grass", "Competition"))
+
+ord.plot.ITS <- plot_ordination(ps.ITS.nocontrols.rare, GL_pcoa, color = "FunGroup", shape = "FunGroup") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = FunGroup)) +
+  theme(
+    # legend.title = element_blank(),
+    # legend.position = c(.82, .82),
+    # legend.text = element_text(size = 10),
+    # legend.margin = margin(c(.1,.1,.1,.1))
+    legend.position = "none",
+  ) +
+  scale_color_manual(values = c("magenta4", "cyan4" ,"goldenrod3"))
+
+ggsave("Figures/ord-plot-ITS.jpg", ord.plot.ITS, width = 5, height = 4, units = "in", dpi = 600)
 
 DistBC = phyloseq::distance(ps.ITS.nocontrols.rare, method = "bray", type="samples")
 
@@ -415,6 +451,9 @@ adonis(DistBC ~ FunGroup, as(sample_data(ps.ITS.nocontrols.rare), "data.frame"),
 
 # because all these are marginal, we should not be looking at pairwise comparisons
 
+sample_data(ps.ITS.nocontrols.rare)$FunGroup <- as.factor(sample_data(ps.ITS.nocontrols.rare)$FunGroup)
+pair.its.com <- adonis.pair(DistBC, as(sample_data(ps.ITS.nocontrols.rare), "data.frame")$FunGroup, nper = 9999, corr.method = "BH")
+kable(pair.its.com)
 
 #### ASV (16S): G v F ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
@@ -684,11 +723,11 @@ df_taxa <- data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.du
 kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Order (16S): G v F ####
-## Is this code correct? double check, ITS uses tax_glom
+## Is this code correct? double check, ITS uses tax_glom; Also I changed this to look at family, that might make more sense however given that we probably arent using this anymore I'm not going through an changing them all
 AvgRA99_Order <- filter_taxa(ps.16s.nocontrols.rare.RA, function(x) mean(x) > .007, TRUE)
 df_Order <- psmelt(AvgRA99_Order)
 grouped_Order <- group_by(df_Order, FunGroup, Family, Order, Class, Phylum, Kingdom)
-avgs_Order <- summarise(grouped_Order, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
+avgs_Order <- dplyr::summarise(grouped_Order, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
 
 ggplot(avgs_Order, aes(x = Family, y = mean, fill = Order)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
@@ -703,11 +742,11 @@ ggplot(avgs_Order, aes(x = Family, y = mean, fill = Order)) +
 
 listofcats_sig = NULL
 DataSet = df_Order
-taxa = unique(DataSet$Order)
+taxa = unique(DataSet$Family)
 df_taxa <- data.frame(taxa = taxa, chisq = rep(NA, length(taxa)), pvals = rep(NA, length(taxa)))
 
 for (cat in df_taxa$taxa) { # for each Order that has a mean abundance above 1%
-  new_df <- subset(DataSet, DataSet$Order == cat)
+  new_df <- subset(DataSet, DataSet$Family == cat)
   new_df$ST <- as.factor(new_df$FunGroup)
   kw = kruskal.test(Abundance ~ ST, data=new_df) # test whether the abundance of that Order varies by ST, defined above as functional group
   df_taxa[df_taxa$taxa == cat,]$chisq = kw$statistic # return the chi square stat
@@ -730,7 +769,7 @@ comparison.dunn = NULL
 cats.dunn = NULL
 
 for (cat in listofcats_sig){
-  new_df <- subset(DataSet, DataSet$Order == cat)
+  new_df <- subset(DataSet, DataSet$Family == cat)
   new_df$ST <- as.factor(new_df$FunGroup)
   dT = dunnTest(Abundance ~ ST, data = new_df, method = "bh") # bh adjustment done here, no need to do it below
   
@@ -948,10 +987,25 @@ df_taxa <- data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.du
 kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Alpha diveristy: 16S ####
-plot_richness(ps.16s.nocontrols.rare, measures = c("Observed", "Shannon", "Chao1"), x = "FunGroup", color = "FunGroup") + 
-  theme(text = element_text(size=24)) + geom_boxplot() + 
+plot_richness(ps.16s.nocontrols.rare, measures = "Shannon", x = "FunGroup", color = "FunGroup") + 
+  theme(text = element_text(size=24)) + 
+  geom_boxplot() + 
   geom_jitter() +
   theme(axis.text.x = element_text(angle=-70, hjust=0, vjust=.5)) 
+
+p.rich.16s <- plot_richness(ps.16s.nocontrols.rare, measures = "Shannon", x = "FunGroup", color = "FunGroup") + 
+  geom_boxplot() +
+  geom_jitter() +
+  theme_bw(base_size = 15) +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    strip.text = element_blank()
+  ) +
+  scale_color_manual(values = c("magenta4", "cyan4" ,"goldenrod3")) +
+  labs(y = "Shannon Diversity")
+  
+ggsave("Figures/rich-16S.jpg", p.rich.16s, width = 5, height = 4, units = "in", dpi = 600)
 
 ## Stats ##
 
@@ -971,6 +1025,20 @@ plot_richness(ps.ITS.nocontrols.rare, measures = c("Observed", "Shannon"), x = "
   theme(text = element_text(size=24)) + geom_boxplot() + 
   geom_jitter() +
   theme(axis.text.x = element_text(angle=-70, hjust=0, vjust=.5)) 
+
+p.rich.ITS <- plot_richness(ps.ITS.nocontrols.rare, measures = "Shannon", x = "FunGroup", color = "FunGroup") + 
+  geom_boxplot() +
+  geom_jitter() +
+  theme_bw(base_size = 15) +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    strip.text = element_blank()
+  ) +
+  scale_color_manual(values = c("magenta4", "cyan4" ,"goldenrod3")) +
+  labs(y = "Shannon Diversity")
+
+ggsave("Figures/rich-ITS.jpg", p.rich.ITS, width = 5, height = 4, units = "in", dpi = 600)
 
 ## Stats ##
 
@@ -2720,7 +2788,185 @@ otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.asv.all[occ_abun
 
 rm(occ_abun, obs.np, otu, otu_PA, otu_ranked, spp, taxon, otu_occ, otu_rel, i, nReads, PresenceSum)
 
+#### Core Family (ITS): All #### 
+ps.ITS.nocontrols.rare <- subset_samples(ps.ITS.nocontrols.rare, !(is.na(Competion))) # these were likely removed earlier but just to be sure
+core.all.fam <- tax_glom(ps.ITS.nocontrols.rare, taxrank = "Family", NArm = FALSE)
 
+otu <- data.frame(otu = rownames(t(otu_table(core.all.fam))), t(otu_table(core.all.fam)))
+tax <- t(data.frame(t(tax_table(core.all.fam))))
+tax <- data.frame(otu = rownames(tax), tax)
+
+tax$ord.fam <- paste(tax$Order, tax$Family, sep = ".")
+
+otu <- merge(tax[,c(1,9)], otu, by = "otu")
+otu <- filter(otu, ord.fam != "NA.NA")
+rownames(otu) <- otu$ord.fam
+otu <- otu[ , c(3:ncol(otu))]
+
+nReads <- 7557 
+map <- mapping
+
+otu_PA <- 1*((otu>0)==1)  
+otu_occ <- rowSums(otu_PA)/ncol(otu_PA)  
+otu_rel <- apply(decostand(otu, method = "total", MARGIN = 2), 1, mean)   
+occ_abun <- add_rownames(as.data.frame(cbind(otu_occ, otu_rel)),'otu') 
+
+map$SampleID.occ <- gsub("-", "\\.", map$SampleID_Fix)
+
+PresenceSum <- data.frame(otu = as.factor(row.names(otu)), otu) %>%
+  gather(SampleID.occ, abun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  group_by(otu, FunGroup) %>% 
+  dplyr::summarise(plot_freq = sum(abun > 0)/length(abun), 
+            coreTrt = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0)) %>%    
+  group_by(otu) %>% 
+  dplyr::summarise(sumF = sum(plot_freq), 
+            sumG = sum(coreTrt), 
+            nS = length(FunGroup)*2,
+            Index = (sumF + sumG)/nS) 
+
+otu_ranked <- occ_abun %>%
+  left_join(PresenceSum, by = 'otu') %>% 
+  transmute(otu = otu,
+            rank = Index) %>%
+  arrange(dplyr::desc(rank))
+
+# BCaddition <- NULL
+# 
+# otu_start <- otu_ranked$otu[1]
+# start_matrix <- as.matrix(otu[otu_start,])
+# 
+# x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]] - start_matrix[, x[2]]))/(2 * nReads))
+# x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+# df_s <- data.frame(x_names,x)
+# names(df_s)[2] <- 1
+# BCaddition <- rbind(BCaddition,df_s)
+# 
+# for(i in 2:255){
+#   otu_add = otu_ranked$otu[i]
+#   add_matrix <- as.matrix(otu[otu_add,])
+#   start_matrix <- rbind(start_matrix, add_matrix)
+#   x <- apply(combn(ncol(start_matrix), 2), 2, function(x) sum(abs(start_matrix[,x[1]]-start_matrix[,x[2]]))/(2*nReads))
+#   x_names <- apply(combn(ncol(start_matrix), 2), 2, function(x) paste(colnames(start_matrix)[x], collapse = ' - '))
+#   df_a <- data.frame(x_names, x)
+#   names(df_a)[2] <- i
+#   BCaddition <- left_join(BCaddition, df_a, by = c('x_names'))
+# }
+# 
+# 
+# x <-  apply(combn(ncol(otu), 2), 2, function(x) sum(abs(otu[,x[1]] - otu[,x[2]]))/(2*nReads))
+# x_names <- apply(combn(ncol(otu), 2), 2, function(x) paste(colnames(otu)[x], collapse = ' - '))
+# df_full <- data.frame(x_names, x)
+# 
+# names(df_full)[2] <- i + 1
+# BCfull <- left_join(BCaddition, df_full, by = 'x_names')
+# 
+# rownames(BCfull) <- BCfull$x_names
+# temp_BC <- BCfull
+# temp_BC$x_names <- NULL
+# temp_BC_matrix <- as.matrix(temp_BC)
+# 
+# BC_ranked <- data.frame(rank = as.factor(row.names(t(temp_BC_matrix))), t(temp_BC_matrix)) %>%
+#   gather(comparison, BC, -rank) %>%
+#   group_by(rank) %>%
+#   dplyr::summarise(MeanBC = mean(BC)) %>%
+#   arrange(-dplyr::desc(MeanBC)) %>%
+#   mutate(proportionBC = MeanBC/max(MeanBC))
+# 
+# Increase = BC_ranked$MeanBC[-1]/BC_ranked$MeanBC[-length(BC_ranked$MeanBC)]
+# increaseDF <- data.frame(IncreaseBC = c(0,(Increase)), rank = factor(c(1:(length(Increase) + 1))))
+# BC_ranked <- left_join(BC_ranked, increaseDF)
+# BC_ranked <- BC_ranked[-nrow(BC_ranked),]
+# 
+# rm(BCaddition, BCfull, x, x_names, i, temp_BC, temp_BC_matrix, start_matrix, increaseDF, otu_PA, df_s, df_full, df_a, add_matrix, otu_add, otu_start, Increase)
+# 
+# BC_ranked$fo_diffs <- sapply(1:nrow(BC_ranked), fo_difference)
+# 
+# elbow <- which.max(BC_ranked$fo_diffs)
+# 
+# (elbow.all.p <- ggplot(BC_ranked[1:250,], aes(x = factor(BC_ranked$rank[1:250], levels = BC_ranked$rank[1:250]))) +
+#   geom_point(aes(y = proportionBC)) +
+#   theme_classic() +
+#   theme(strip.background = element_blank(),
+#         axis.text.x = element_text(size = 7, angle = 45)) +
+#   geom_vline(xintercept = elbow, lty = 3, col = 'red', cex = .5) +
+#   geom_vline(xintercept = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),
+#              lty = 3, col = 'blue', cex = .5) +
+#   labs(x = 'ranked OTUs', y = 'Bray-Curtis similarity') +
+#   annotate(geom = "text",
+#            x = elbow + 10,
+#            y = .15,
+#            label = paste("Elbow method"," (",elbow,")", sep = ''), color = "red") +
+#   annotate(geom = "text",
+#            x = last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])) - 4,
+#            y = .08,
+#            label = paste("Last 2% increase (",last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC >= 1.02)])),')', sep = ''), color = "blue"))
+# 
+# occ_abun$fill <- 'no'
+# occ_abun$fill[occ_abun$otu %in% otu_ranked$otu[1:last(as.numeric(BC_ranked$rank[(BC_ranked$IncreaseBC>=1.02)]))]] <- 'core'
+# 
+# 
+# saveRDS(occ_abun, "Data/ITS/Core/ITS_occ_abun_fam_all.RDS")
+# saveRDS(BC_ranked, "Data/ITS/Core/ITS_BC_ranked_fam_all.RDS")
+
+occ_abun.fam.all <- readRDS("Data/ITS/Core/ITS_occ_abun_fam_all.RDS")
+BC_ranked.fam.all <- readRDS("Data/ITS/Core/ITS_BC_ranked_fam_all.RDS")
+
+taxon <- as.matrix(rownames(otu))
+rownames(taxon) <- taxon
+spp <- t(otu)
+
+obs.np <- sncm.fit(spp, taxon, stats = FALSE, pool = NULL) # this doesnt work because of NAs in teh data
+
+(core.all.p <- ggplot() +
+  geom_point(data = occ_abun.fam.all[occ_abun.fam.all$fill == 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+             pch = 21, fill = 'white', alpha = .2) +
+  geom_point(data = occ_abun.fam.all[occ_abun.fam.all$fill != 'no',], aes(x = log10(otu_rel), y = otu_occ), 
+             pch = 21, fill = 'blue', size = 1.8) +
+  geom_line(data = obs.np, aes(y = freq.pred, x = log10(p)), 
+            size = 1, color = 'black', alpha = .25) +
+  geom_line(data = obs.np, aes(y = pred.upr, x = log10(p)), 
+            color = 'black', lty = 'twodash', size = 1, alpha = .25)+
+  geom_line(data = obs.np, aes(y = obs.np$pred.lwr, x = log10(p)), 
+            color = 'black', lty = 'twodash', size = 1, alpha = .25) +
+  labs(title = "16S Core: All Samples", x = "log10(mean relative abundance)", y = "Occupancy"))
+
+core.all <- occ_abun.fam.all$otu[occ_abun.fam.all$fill == 'core']
+
+otu_relabun.fam.all <- decostand(otu, method = "total", MARGIN = 2)
+
+plotDF <-  data.frame(otu = as.factor(row.names(otu_relabun.fam.all)), otu_relabun.fam.all) %>% 
+  gather(SampleID.occ, relabun, -otu) %>%
+  left_join(map, by = 'SampleID.occ') %>%
+  left_join(otu_ranked, by = 'otu') %>%
+  filter(otu %in% core.all) %>% 
+  group_by(FunGroup, otu) %>%
+  dplyr::summarise(plot_freq = sum(relabun>0)/length(relabun), 
+            coreSite = ifelse(plot_freq == 1, 1, 0), 
+            detect = ifelse(plot_freq > 0, 1, 0))
+
+plotDF$otu <- factor(plotDF$otu, levels = otu_ranked$otu[1:78]) 
+
+(all.plotDF <- ggplot(plotDF, aes(x = otu, plot_freq, group = FunGroup, fill = FunGroup)) +    
+  geom_bar(stat = 'identity', position = 'dodge') +
+  coord_flip() +
+  scale_x_discrete(limits = rev(levels(plotDF$otu %in% core.all))) +
+  theme(axis.text = element_text(size = 6)) +
+  labs(x = 'Ranked OTUs', y = 'Occupancy by site')) # everything is in like 90% of samples
+
+otu_RA_core.all <- data.frame(otu = as.factor(row.names(otu_relabun.fam.all)), otu_relabun.fam.all) %>%
+  filter(otu %in% plotDF$otu)
+
+## divide core into neutral vs deterministic vs dispersal limited ##
+otu.mod.all <- data.frame(otu = occ_abun.fam.all[occ_abun.fam.all$fill == "core",]$otu, mod = rep(NA, length(unique(occ_abun.fam.all[occ_abun.fam.all$fill == "core",]$otu))))
+
+for(i in otu.mod.all$otu){
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.fam.all[occ_abun.fam.all$otu == i,]$otu_occ) > log10(obs.np[obs.np$V1 == i,]$pred.upr), "det", "neu")
+
+otu.mod.all[otu.mod.all$otu == i,]$mod <- ifelse(log10(occ_abun.fam.all[occ_abun.fam.all$otu == i,]$otu_occ) < log10(obs.np[obs.np$V1 == i,]$pred.lwr), "dis", otu.mod.all[otu.mod.all$otu == i,]$mod)
+
+}
 #### Differential abundance analysis: 16s ####
 ## 16S: Soil v Rhiz  ##
 
@@ -3164,6 +3410,8 @@ write.csv(df.res, "Data/16s.ddseq.fungroup.fam.csv")
 
 
 #same as above but now with "forb" as the comparison
+ps.16s.nocontrols.nobss <- subset_samples(ps.16s.nocontrols.fam, SampleSubType !="Background_soil_sand_mix")
+
 sample_data(ps.16s.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.16s.nocontrols.nobss)$FunGroup), "Forb")
 
 treat.16s = phyloseq_to_deseq2(ps.16s.nocontrols.nobss, ~ FunGroup)
@@ -3735,7 +3983,7 @@ write.csv(df.res, "Data/its.ddseq.fungroup.fam.csv")
 
 
 #same as above but now with "forb" as the comparison
-sample_data(ps.its.nocontrols.nobss)$FunGroup <- relevel(sample_data(ps.its.nocontrols.nobss)$FunGroup, "Forb")
+sample_data(ps.its.nocontrols.nobss)$FunGroup <- relevel(as.factor(sample_data(ps.its.nocontrols.nobss)$FunGroup), "Forb")
 
 treat.its = phyloseq_to_deseq2(ps.its.nocontrols.nobss, ~ FunGroup)
 
@@ -3845,26 +4093,6 @@ write.csv(df.res.tax, "Data/its.ddseq.competition.fam.csv")
 
 # Some families differ during competition (where as ASVs did not)
 # however the log2fold change is very low, so may not be informative
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -4107,6 +4335,155 @@ results.train.fg.its <- predict(st.fg.its, alpha1=alpha1, alpha2=alpha2)
 labels.fg.its <- sprintf('%s %s', envs.fg.its,desc)
 plot(results.fg.its, labels.fg.its[test.ix.fg.its], type='pie')
 
+#### Biomass effects ####
+hist(log(mapping$Weight.g))
+
+mapping$FunGroup <- as.factor(mapping$FunGroup)
+
+# Forb weight
+m.bio.f <- lmer(log(forb.wt) ~ FunGroup + (1|forb), mapping[mapping$FunGroup != "Grass",])
+plot(fitted(m.bio.f), resid(m.bio.f))
+qqnorm(resid(m.bio.f))
+qqline(resid(m.bio.f))
+summary(m.bio.f)
+
+# Grass weight
+m.bio.g <- lmer(log(grass.wt) ~ FunGroup + (1|grass), mapping[mapping$FunGroup != "Forb",])
+plot(fitted(m.bio.g), resid(m.bio.g))
+qqnorm(resid(m.bio.g))
+qqline(resid(m.bio.g))
+summary(m.bio.g)
+
+# Log response ratio
+map.comp <- mapping %>%
+  filter(Competion == "TwoSpecies") %>%
+  pivot_longer(c(grass, forb), names_to = "FunGroup2", values_to = "Species")
+
+biomass <- mapping %>%
+  filter(Competion == "SingleSpecies") %>%
+  dplyr::group_by(PlantSpeciesSampled) %>%
+  dplyr::summarise(avg.wt = mean(Weight.g, na.rm = T)) %>%
+  dplyr::rename(Species = PlantSpeciesSampled) %>%
+  left_join(map.comp, by = "Species") %>%
+  filter(Competion == "TwoSpecies")
+
+biomass$weight.d <- ifelse(biomass$FunGroup2 == "forb", log(biomass$forb.wt/biomass$avg.wt), log(biomass$grass.wt/biomass$avg.wt))
+
+
+m.bio <- lmer(weight.d ~ FunGroup2 + (1|Treatment), biomass)
+plot(fitted(m.bio), resid(m.bio))
+qqnorm(resid(m.bio))
+qqline(resid(m.bio))
+summary(m.bio)
+
+library(Rmisc)
+biomass.lrr.sum <- summarySE(biomass, groupvars = "FunGroup2", measurevar = "weight.d", na.rm = T)
+biomass.lrr.sum$FunGroup2 <- recode(biomass.lrr.sum$FunGroup2, grass = "Grass", forb = "Forb")
+
+bio.plot <- ggplot(biomass.lrr.sum, aes(y = weight.d, x = FunGroup2, fill = FunGroup2)) + 
+  geom_bar(stat = "identity", position = "dodge", col = "black") + 
+  geom_errorbar(aes(ymin = weight.d - se, ymax = weight.d + se), width = 0.2, position = position_dodge(1)) + 
+  theme_bw(base_size = 15) +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "none"
+  ) +
+  labs(y = "Log Response Ratio") +
+  scale_fill_manual(values = c("magenta4", "cyan4"))
+
+ggsave("Figures/bio-lrr-plot.jpg", bio.plot, width = 5, height = 4, units = "in", dpi = 600)
+
+biomass$Species <- factor(biomass$Species, levels = c("Clarkia purpurea", "Agoseris heterophylla", "Calycadenia pauciflora", "Hemizonia congesta", "Lasthenia californica", "Plantago erecta", "Elymus caput-medusae", "Bromus hordeaceus", "Avena fatua"))  
+
+# biomass$Species.sh <- revalue(biomass$Species, c("Bromus hordeaceus" = "BRHO", "Clarkia purpurea" =  "CLPU", "Agoseris heterophylla" = "AGHE", "AVFA" = "Avena fatua", "CAPA" = "Calycadenia pauciflora", "HECO" = "Hemizonia congesta", "LACA" = "Lasthenia californica", "PLER" = "Plantago erecta", "TACA" = "Taeniatherum caput-medusae"))
+
+
+# ggplot(biomass, aes(y = weight.d, x = Species, col = FunGroup2)) +
+#   geom_boxplot()
+# 
+# ggplot(biomass, aes(y = weight.d, x = FunGroup2)) +
+#   geom_point()
+
+### looking at target and neighbor ##
+biomass <- separate(biomass, PlantSpeciesSampled, c("species1", "species2"), sep = ",")
+biomass <- biomass[!is.na(biomass$weight.d),]
+biomass$neighbor <- ifelse(biomass$FunGroup2 == "forb", biomass$species1, biomass$species2)
+biomass$neighbor2 <- ifelse(biomass$FunGroup2 == "forb", "grass", "forb")
+
+bio.nt <- lmer(weight.d ~ neighbor2 + (1|Treatment), biomass) 
+plot(fitted(bio.nt), resid(bio.nt))
+qqnorm(resid(bio.nt))
+qqline(resid(bio.nt))
+summary(bio.nt)# competitive effects dont vary between grasses and forbs...
+
+bio.nt <- lmer(weight.d ~ FunGroup2 + (1|Treatment), biomass) 
+plot(fitted(bio.nt), resid(bio.nt))
+qqnorm(resid(bio.nt))
+qqline(resid(bio.nt))
+summary(bio.nt) # competitive response doesnt vary between grasses and forbs
+
+biomass.f <- filter(mapping[,c(1, 6, 8, 9, 13, 28, 30, 35)], forb != "none", !is.na(forb.wt))
+biomass.g <- filter(mapping[,c(1, 6, 8, 9, 13, 27, 31, 35)], grass != "none")
+biomass.f$g.f <- "Forb"
+biomass.g$g.f <- "Grass"
+colnames(biomass.g)[6:7] <- c("Species", "weight.g")
+colnames(biomass.f)[6:7] <- c("Species", "weight.g")
+biomass2 <- rbind(biomass.g, biomass.f)
+
+biomass2$FunGroup <- ifelse(biomass2$FunGroup == "grass_x_forb", paste(biomass2$FunGroup, biomass2$g.f, sep = "."), as.character(biomass2$FunGroup))
+
+hist(log(biomass2$weight.g))
+m.bio2 <- lmer(log(weight.g) ~ FunGroup - 1 + (1|Species), biomass2)
+plot(fitted(m.bio2), resid(m.bio2))
+qqnorm(resid(m.bio2))
+qqline(resid(m.bio2))
+summary(m.bio2)
+
+pairs(emmeans(m.bio2, ~FunGroup))
+
+# contrasts
+
+Fb <- c(1,0,0,0)
+G <- c(0,1,0,0)
+fxgF <- c(0,0,1,0)
+fxgG <- c(0,0,0,1)
+
+K <- rbind("Fb - G" = Fb - G,
+           "Fb - fxgF" = Fb - fxgF,
+           "G - fxgG" = G - fxgG,
+           "fxgF  - fxgG" = fxgF  - fxgG)
+
+library(multcomp)
+summary(glht(m.bio2, linfct = K), test = adjusted("BH")) # forbs declined more than grasses in competition
+
+hist(log(biomass2$weight.g))
+m.bio2 <- lmer(log(weight.g) ~ Competion * g.f + (1|Species), biomass2)
+plot(fitted(m.bio2), resid(m.bio2))
+qqnorm(resid(m.bio2))
+qqline(resid(m.bio2))
+summary(m.bio2)
+
+library(Rmisc)
+
+biomass.sum <- summarySE(biomass2, measurevar = "weight.g", groupvars = c("Competion","g.f", "Species"))
+
+biomass.sum$Competion <- as.numeric(biomass.sum$Competion)
+
+ggplot(biomass.sum, aes(y = weight.g, x = Competion, col = Species, group = Species)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = weight.g - se, ymax = weight.g + se), width = 0.1) +
+  facet_wrap(~g.f) +
+  theme_classic()
+
+biomass.sum <- summarySE(biomass2, measurevar = "weight.g", groupvars = c("Competion","g.f"))
+
+ggplot(biomass.sum, aes(y = weight.g, x = Competion)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  geom_errorbar(aes(ymin = weight.g - se, ymax = weight.g + se), width = 0.2, position = position_dodge(1)) +
+  facet_wrap(~g.f) +
+  theme_classic()
+
 #### Biomass v Diversity ####
 GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = c("Observed","Shannon", "InvSimpson"))
 GL_Alpha2 <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
@@ -4193,6 +4570,11 @@ qqnorm(resid(m.b))
 qqline(resid(m.b))
 summary(m.b)
 
+m.b <- lmer(log(grass.wt) ~ FunGroup + ax1 + (1|grass), data = ord.ax[ord.ax$FunGroup != "Forb",])
+plot(fitted(m.b), resid(m.b))
+qqnorm(resid(m.b))
+qqline(resid(m.b))
+summary(m.b)
 
 psem.16S <- psem(
   
@@ -4324,613 +4706,833 @@ summary(psem.16S, .progressBar = FALSE)
 ps.16s.nocontrols.RA.fam <- tax_glom(ps.16s.nocontrols.rare.RA, taxrank = "Family", NArm = FALSE )
 SEM.fam.df <- psmelt(ps.16s.nocontrols.RA.fam)
 
-SEM.fam.df2 <- SEM.fam.df %>%
-  filter(Competion == "SingleSpecies", forb != "none") %>%
-  group_by(forb, Family) %>%
-  summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
-  left_join(SEM.fam.df, by = c("forb", "Family")) %>%
-  filter(Competion == "TwoSpecies") %>%
-  mutate(weight.d = log(forb.wt/avg.wt), Family.d = (Abundance - avg.RA)/avg.RA)
+
+fam.df.f <- filter(SEM.fam.df[,-c(30,34,35)], forb != "none", !is.na(forb.wt))
+fam.df.g <- filter(SEM.fam.df[,-c(31,33,35)], grass != "none")
+fam.df.f$g.f <- "Forb"
+fam.df.g$g.f <- "Grass"
+colnames(fam.df.g)[c(30,32)] <- c("Species", "weight.g")
+colnames(fam.df.f)[c(30,32)] <- c("Species", "weight.g")
+fam.df <- rbind(fam.df.g, fam.df.f)
+
+fam.df$FunGroup <- ifelse(fam.df$FunGroup == "grass_x_forb", paste(fam.df$FunGroup, fam.df$g.f, sep = "."), as.character(fam.df$FunGroup))
+
+fam.df$Competion <- revalue(fam.df$Competion, c("SingleSpecies" = "Alone", "TwoSpecies" = "Together"))
+
+# SEM.fam.df2 <- SEM.fam.df %>%
+#   filter(Competion == "SingleSpecies") %>%
+#   group_by(forb, Family) %>%
+#   summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
+#   left_join(SEM.fam.df, by = c("forb", "Family")) %>%
+#   filter(Competion == "TwoSpecies") %>%
+#   mutate(weight.d = log(forb.wt/avg.wt), Family.d = (Abundance - avg.RA)/avg.RA)
 
 SEM.fam.comp <- SEM.fam.df %>%
   filter(Competion == "TwoSpecies") %>%
   pivot_longer(c(grass, forb), names_to = "FunGroup2", values_to = "Species")
 
 SEM.fam.df3 <- SEM.fam.df %>%
-  filter(Competion == "SingleSpecies") %>%
-  group_by(PlantSpeciesSampled, Family) %>%
-  summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
+  dplyr::filter(Competion == "SingleSpecies") %>%
+  dplyr::group_by(PlantSpeciesSampled, Family) %>%
+  dplyr::summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
   dplyr::rename(Species = PlantSpeciesSampled) %>%
   left_join(SEM.fam.comp, by = c("Species", "Family")) %>%
-  filter(Competion == "TwoSpecies") %>%
-  mutate(weight.d = log(forb.wt/avg.wt), Family.d = (Abundance - avg.RA)/avg.RA)
+  filter(Competion == "TwoSpecies") 
+# %>%
+#   mutate(weight.d = log(forb.wt/avg.wt), Family.d = (Abundance - avg.RA)/avg.RA)
+  
+SEM.fam.df3$weight.d <- ifelse(SEM.fam.df3$FunGroup2 == "forb", log(SEM.fam.df3$forb.wt/SEM.fam.df3$avg.wt), log(SEM.fam.df3$grass.wt/SEM.fam.df3$avg.wt))
+
+SEM.fam.df3 <- separate(SEM.fam.df3, PlantSpeciesSampled, c("species1", "species2"), sep = ",")
+SEM.fam.df3$neighbor <- ifelse(SEM.fam.df3$FunGroup2 == "forb", SEM.fam.df3$species1, SEM.fam.df3$species2)
+SEM.fam.df3$neighbor2 <- ifelse(SEM.fam.df3$FunGroup2 == "forb", "grass", "forb")
 
 #### Fibrobacteraceae ####
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Fibrobacteraceae" & fam.df$g.f == "Forb",], aes(x = Abundance, y = log(weight.g + 0.01), col = Species, group = Species)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Fibrobacteraceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance * FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Fibrobacteraceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Fibrobacteraceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Fibrobacteraceae" & SEM.fam.df3$FunGroup2 == "grass",], aes(x = Abundance, y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Fibrobacteraceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Fibrobacteraceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Fibrobacteraceae" & SEM.fam.df3$FunGroup2 == "grass",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Fibrobacteraceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
+m.f.lrr <- lmer(weight.d ~ Abundance * neighbor2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Fibrobacteraceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
-#### Burkholderiaceae ####
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+#### Veillonellaceae ####
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Veillonellaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Veillonellaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae",], aes(x = Abundance, y = log(grass.wt + 0.01))) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance * FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Burkholderiaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup2 + (1|Treatment), data = fam.df[fam.df$Family == "Veillonellaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Burkholderiaceae" & SEM.fam.df3$FunGroup2 == "grass",], aes(x = Abundance, y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Veillonellaceae" & SEM.fam.df3$Abundance < 0.01,], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Veillonellaceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Burkholderiaceae" & SEM.fam.df3$FunGroup2 == "grass",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Veillonellaceae" & SEM.fam.df3$Abundance < 0.01,])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
+
+#### Clostridiaceae_1 ####
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Clostridiaceae_1",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Clostridiaceae_1", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup2 + (1|Treatment), data = fam.df[fam.df$Family == "Clostridiaceae_1",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Clostridiaceae_1" & SEM.fam.df3$Abundance < 0.01,], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Clostridiaceae_1", y = "Log Response Ratio")
+
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Clostridiaceae_1",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
+
+# outliers removed
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Clostridiaceae_1" & SEM.fam.df3$Abundance < 0.01,])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
 #### Methylophilaceae ####
 
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Methylophilaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Methylophilaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance * FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  xlim(0, 0.012)
-
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",], aes(x = FunGroup, y = Abundance)) +
-  geom_point()
-
-hist(log(SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",]$Abundance + 0.0004))
-m.b <- lm(log(Abundance + 0.0004) ~ FunGroup, data = SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ scale(Abundance) + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Methylophilaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Methylophilaceae" & fam.df$g.f != "Forb",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
 ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Methylophilaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm", se = F)
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Methylophilaceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Methylophilaceae" & SEM.fam.df3$FunGroup2 == "grass",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Methylophilaceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
+#### **- Burkholderiaceae ####
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Burkholderiaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Burkholderiaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Burkholderiaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Burkholderiaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Burkholderiaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Burkholderiaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
 
 #### Cyclobacteriaceae ####
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Cyclobacteriaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Cyclobacteriaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ scale(Abundance) + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Cyclobacteriaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Cyclobacteriaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Cyclobacteriaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Cyclobacteriaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm", se = F)
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Cyclobacteriaceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Cyclobacteriaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-
-#### Streptomycetaceae ####
-
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance * FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Cyclobacteriaceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
 
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance * FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Streptomycetaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-
-## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Streptomycetaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
-  geom_point() +
-  geom_smooth(method = "lm", se = F)
-
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Streptomycetaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
 
 #### Nitrospiraceae ####
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Nitrospiraceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Nitrospiraceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance * FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance * FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Nitrospiraceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Nitrospiraceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Nitrospiraceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
-  geom_point() +
-  geom_smooth(method = "lm", se = F)
-
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Nitrospiraceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Nitrospiraceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Nitrospiraceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Nitrospiraceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
 
 #### Steroidobacteraceae ####
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Steroidobacteraceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Steroidobacteraceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Steroidobacteraceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Steroidobacteraceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Steroidobacteraceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Steroidobacteraceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm", se = F)
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Steroidobacteraceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Steroidobacteraceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-#### Veillonellaceae ####
-
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Veillonellaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-
-## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Veillonellaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
-  geom_point() +
-  geom_smooth(method = "lm", se = F)
-
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Veillonellaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-#### Clostridiaceae_1 ####
-
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1",], aes(x = log(Abundance + 0.001), y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1",], aes(x = log(Abundance + 0.001), y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1",], aes(x = log(Abundance + 0.001), y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Clostridiaceae_1" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-
-## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Clostridiaceae_1" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = Abundance, y = weight.d)) + 
-  geom_point() +
-  geom_smooth(method = "lm", se = F)
-
-m.b <- lmer(weight.d ~ Abundance + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Clostridiaceae_1" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Steroidobacteraceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
 #### Rhodocyclaceae ####
 
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Rhodocyclaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Rhodocyclaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Rhodocyclaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Rhodocyclaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Rhodocyclaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = log(Abundance + 0.001), y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Rhodocyclaceae" & SEM.fam.df3$Abundance < 0.04,], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm", se = F)
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Rhodocyclaceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ log(Abundance + 0.001) + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Rhodocyclaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Rhodocyclaceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
 #### Weeksellaceae ####
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Weeksellaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Weeksellaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Weeksellaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Weeksellaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Weeksellaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = log(Abundance + 0.001), y = weight.d)) + 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Weeksellaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_point() +
-  geom_smooth(method = "lm", se = F)
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Weeksellaceae", y = "Log Response Ratio")
 
-m.b <- lmer(weight.d ~ log(Abundance + 0.001) + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Weeksellaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Weeksellaceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
+
+#### Streptomycetaceae ####
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Streptomycetaceae" & fam.df$Abundance < 0.01,], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Streptomycetaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Streptomycetaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Streptomycetaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Streptomycetaceae", y = "Log Response Ratio")
+
+m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Streptomycetaceae",])
+plot(fitted(m.f.lrr), resid(m.f.lrr))
+qqnorm(resid(m.f.lrr))
+qqline(resid(m.f.lrr))
+summary(m.f.lrr)
 
 #### Microbacteriaceae ####
-# Abundance vs weight forb
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae",], aes(x = Abundance, y = log(forb.wt + 0.01), col = FunGroup, group = FunGroup)) +
+
+## Abundance vs weight
+ggplot(fam.df[fam.df$Family == "Microbacteriaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Microbacteriaceae", y = "Log Weight (g)")
 
-m.b <- lmer(log(forb.wt + 0.01) ~ Abundance + FunGroup + (1|forb), data = SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight grass
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae",], aes(x = Abundance, y = log(grass.wt + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-m.b <- lmer(log(grass.wt + 0.01) ~ Abundance + FunGroup + (1|grass), data = SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-# Abundance vs weight spp
-ggplot(SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae",], aes(x = Abundance, y = log(Weight.g + 0.01), col = FunGroup, group = FunGroup)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-
-m.b <- lmer(log(Weight.g + 0.01) ~ Abundance + FunGroup + (1|PlantSpeciesSampled), data = SEM.fam.df[SEM.fam.df$Family == "Microbacteriaceae" & SEM.fam.df$Competion == "SingleSpecies",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
-
-
-
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance + FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Microbacteriaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
 
 ## log response ratio 
-ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Flavobacteriaceae" & SEM.fam.df3$FunGroup2 == "forb",], aes(x = log(Abundance + 0.001), y = weight.d)) + 
-  geom_point() +
-  geom_smooth(method = "lm")
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Microbacteriaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Microbacteriaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Microbacteriaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
 
-m.b <- lmer(weight.d ~ log(Abundance + 0.001) + (1|Species), data = SEM.fam.df3[SEM.fam.df3$Family == "Flavobacteriaceae" & SEM.fam.df3$FunGroup2 == "forb",])
-plot(fitted(m.b), resid(m.b))
-qqnorm(resid(m.b))
-qqline(resid(m.b))
-summary(m.b)
+#### **+ Beijerinckiaceae ####
+
+## Abundance vs weight ** driven by Agoseris
+ggplot(fam.df[fam.df$Family == "Beijerinckiaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Beijerinckiaceae", y = "Log Weight (g)")
+
+m.f.wt <- lm(log(weight.g + 0.05) ~ Abundance * FunGroup, data = fam.df[fam.df$Family == "Beijerinckiaceae" & fam.df$g.f == "Forb",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Beijerinckiaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Beijerinckiaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Beijerinckiaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+
+#### **+ Acetobacteraceae ####
+
+## Abundance vs weight ** driven by plantago
+ggplot(fam.df[fam.df$Family == "Acetobacteraceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = Species, group = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Acetobacteraceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.03) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Acetobacteraceae" & fam.df$g.f == "Forb",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Acetobacteraceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Acetobacteraceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Acetobacteraceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+
+#### **+ Azospirillaceae ####
+
+## Abundance vs weight ** driven by plantago
+ggplot(fam.df[fam.df$Family == "Azospirillaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = Species, group = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Azospirillaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Azospirillaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Azospirillaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Azospirillaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Azospirillaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+
+#### **+ Geodermatophilaceae ####
+
+## Abundance vs weight ** driven by plantago
+ggplot(fam.df[fam.df$Family == "Geodermatophilaceae" & fam.df$g.f == "Forb",], aes(x = Abundance, y = log(weight.g + 0.01), col = Species, group = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Geodermatophilaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Geodermatophilaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Geodermatophilaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Geodermatophilaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Geodermatophilaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+
+#### **+ Propionibacteriaceae ####
+
+## Abundance vs weight ## driven by plantago mostly, some hemizonia
+ggplot(fam.df[fam.df$Family == "Propionibacteriaceae" & fam.df$g.f == "Forb",], aes(x = Abundance, y = log(weight.g + 0.01), col = Species, group = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Propionibacteriaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = fam.df[fam.df$Family == "Propionibacteriaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+# ggplot(SEM.fam.df3[SEM.fam.df3$Family == "Propionibacteriaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+#   geom_point() +
+#   geom_smooth(method = "lm", formula = y ~ x) +
+#   theme_bw() +
+#   theme(
+#     strip.background = element_rect(fill = "white"),
+#     legend.title = element_blank(),
+#     plot.title = element_text(hjust = 0.5)
+#   ) +
+#   labs(title = "Propionibacteriaceae", y = "Log Response Ratio")
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Propionibacteriaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+
+#### Pairs ####
+# fam <- res.alpha.tax$Family
+# fam.df <- fam.df[fam.df$Family %in% fam,]
+# group <- unique(fam.df$FunGroup)
+# 
+# fam.df.w <- pivot_wider(fam.df[,c(3,32,35)], names_from = FunGroup, values_from = weight.g)
+# 
+# plot_list = list()
+# model_list = list()
+# 
+# for(i in fam){
+#   for(j in group) {
+#     p <- ggplot(fam.df[fam.df$Family == i & fam.df$FunGroup == j,], aes(y = log(weight.g + 0.01), x = Abundance)) +
+#       geom_point() +
+#       geom_smooth(method = "lm", se = F, formula = y ~ x, col = "red") +
+#       labs(title = paste(i,j)) +
+#       theme_bw()
+#       
+#    plot_list[[i]][j] <- p 
+#    
+#    model_list[[i]][j] <- summary(lmer(log(weight.g + 0.01) ~ Abundance + (1|Species), fam.df[fam.df$Family == i & fam.df$FunGroup == j,]))
+#   }
+# }
+# 
+# print(plot_list[[1]][1])
+
+#### ITS vs biomass ####
+ps.ITS.nocontrols.rare.RA <- transform_sample_counts(ps.ITS.nocontrols.rare, function(x) x / sum(x))
+ps.ITS.nocontrols.RA.fam <- tax_glom(ps.ITS.nocontrols.rare.RA, taxrank = "Family", NArm = FALSE )
+ITS.fam <- psmelt(ps.ITS.nocontrols.RA.fam)
+
+ITS.fam.df.f <- filter(ITS.fam[,-c(30,34,35)], forb != "none", !is.na(forb.wt))
+ITS.fam.df.g <- filter(ITS.fam[,-c(31,33,35)], grass != "none")
+ITS.fam.df.f$g.f <- "Forb"
+ITS.fam.df.g$g.f <- "Grass"
+colnames(ITS.fam.df.g)[c(30,32)] <- c("Species", "weight.g")
+colnames(ITS.fam.df.f)[c(30,32)] <- c("Species", "weight.g")
+ITS.fam.df <- rbind(ITS.fam.df.g, ITS.fam.df.f)
+
+ITS.fam.df$FunGroup <- ifelse(ITS.fam.df$FunGroup == "grass_x_forb", paste(ITS.fam.df$FunGroup, ITS.fam.df$g.f, sep = "."), as.character(ITS.fam.df$FunGroup))
+
+ITS.fam.df$Competion <- revalue(ITS.fam.df$Competion, c("SingleSpecies" = "Alone", "TwoSpecies" = "Together"))
+
+ITS.fam.comp <- ITS.fam %>%
+  dplyr::filter(Competion == "TwoSpecies") %>%
+  pivot_longer(c(grass, forb), names_to = "FunGroup2", values_to = "Species")
+
+
+ITS.fam.df3 <- ITS.fam %>%
+  dplyr::filter(Competion == "SingleSpecies") %>%
+  dplyr::group_by(PlantSpeciesSampled, Family) %>%
+  dplyr::summarise(avg.wt = mean(Weight.g, na.rm = T), avg.RA = mean(Abundance)) %>%
+  dplyr::rename(Species = PlantSpeciesSampled) %>%
+  left_join(ITS.fam.comp, by = c("Species", "Family")) %>%
+  filter(Competion == "TwoSpecies") 
+# %>%
+#   mutate(weight.d = log(forb.wt/avg.wt), Family.d = (Abundance - avg.RA)/avg.RA)
+  
+ITS.fam.df3$weight.d <- ifelse(ITS.fam.df3$FunGroup2 == "forb", log(ITS.fam.df3$forb.wt/ITS.fam.df3$avg.wt), log(ITS.fam.df3$grass.wt/ITS.fam.df3$avg.wt))
+
+ITS.fam.df3 <- separate(ITS.fam.df3, PlantSpeciesSampled, c("species1", "species2"), sep = ",")
+ITS.fam.df3$neighbor <- ifelse(ITS.fam.df3$FunGroup2 == "forb", ITS.fam.df3$species1, ITS.fam.df3$species2)
+ITS.fam.df3$neighbor2 <- ifelse(ITS.fam.df3$FunGroup2 == "forb", "grass", "forb")
+
+# Tubeufiaceae #
+
+## Abundance vs weight
+ggplot(ITS.fam.df[ITS.fam.df$Family == "f__Tubeufiaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  facet_wrap(~ Competion) + 
+  labs(title = "Tubeufiaceae", y = "Log Weight (g)")
+
+m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = ITS.fam.df[ITS.fam.df$Family == "f__Tubeufiaceae",])
+plot(fitted(m.f.wt), resid(m.f.wt))
+qqnorm(resid(m.f.wt))
+qqline(resid(m.f.wt))
+summary(m.f.wt)
+
+## log response ratio 
+ggplot(ITS.fam.df3[ITS.fam.df3$Family == "f__Tubeufiaceae",], aes(x = Abundance, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(title = "Tubeufiaceae", y = "Log Response Ratio")
+
+# m.f.lrr <- lmer(weight.d ~ Abundance * FunGroup2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Tubeufiaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
+# 
+# m.f.lrr <- lmer(weight.d ~ Abundance * neighbor2 + (1|Treatment), data = SEM.fam.df3[SEM.fam.df3$Family == "Tubeufiaceae",])
+# plot(fitted(m.f.lrr), resid(m.f.lrr))
+# qqnorm(resid(m.f.lrr))
+# qqline(resid(m.f.lrr))
+# summary(m.f.lrr)
