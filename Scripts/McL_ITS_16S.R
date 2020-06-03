@@ -4175,19 +4175,47 @@ st <- sourcetracker(asvs_16s[train.ix,], envs[train.ix])
 # Maybe Marina can try running??? Or Cassie can put the data on the cluster!
 
 # Estimate source proportions in test data
-results <- predict(st,asvs_16s[test.ix,], alpha1=alpha1, alpha2=alpha2)
+#results <- predict(st,asvs_16s[test.ix,], alpha1=alpha1, alpha2=alpha2)
+
+results <- readRDS("Data/source_tracker/16s.treatment.ST.RDS")
 
 # Estimate leave-one-out source proportions in training data 
-results.train <- predict(st, alpha1=alpha1, alpha2=alpha2)
+# results.train <- predict(st, alpha1=alpha1, alpha2=alpha2)
+
+results.train <- readRDS("Data/source_tracker/16s.treatment.ST.RDS")
+
+
 
 # plot results
 labels <- sprintf('%s %s', envs,desc)
 plot(results, labels[test.ix], type='pie')
 
+#Restructure results for plotting
+results.df <- as_tibble(results$proportions)
+results.df$SampleID_Fix <- row.names(results$proportions)
+
+results.df.meta <- inner_join(results.df, metadata_16s)
+
+grouped_res <- group_by(results.df.meta, TreatmentName)
+#calculate mean of means + sd (sd(x)/sqrt(length(x)))
+avgs_res <- summarise(grouped_res, mean=100*mean(Background_soil), sd=100*sd(Background_soil)/sqrt(length(Background_soil)))
+
+#Plot % community from background soil (rest of community is thus 'unknown')
+ggplot(avgs_res, aes(x = TreatmentName, y = mean, fill = TreatmentName)) + 
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
+                width = .4, position = position_dodge(.9)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
+        text = element_text(size = 20)) + 
+  ylab("Mean % Community from Background Soil")
+
+kable(avgs_res, caption = "% of community from background soil")
+
 # other plotting functions
 # plot(results, labels[test.ix], type='bar')
-# plot(results, labels[test.ix], type='dist')
-# plot(results.train, labels[train.ix], type='pie')
+#plot(results, labels[test.ix], type='dist')
+#plot(results.train, labels[train.ix], type='pie')
 # plot(results.train, labels[train.ix], type='bar')
 # plot(results.train, labels[train.ix], type='dist')
 
@@ -4216,17 +4244,57 @@ st.fg <- sourcetracker(asvs_16s[train.ix.fg,], envs.fg[train.ix.fg])
 # INTERESTING!
 
 # Estimate source proportions in test data
-results.fg <- predict(st.fg,asvs_16s[test.ix.fg,], alpha1=alpha1, alpha2=alpha2)
+#results.fg <- predict(st.fg,asvs_16s[test.ix.fg,], alpha1=alpha1, alpha2=alpha2)
+
+results.fg <- readRDS("Data/source_tracker/16s.fg.ST.RDS")
 
 # Estimate leave-one-out source proportions in training data 
-results.train.fg <- predict(st.fg, alpha1=alpha1, alpha2=alpha2)
+#results.train.fg <- predict(st.fg, alpha1=alpha1, alpha2=alpha2)
 
+results.train.fg <- readRDS("Data/source_tracker/16s.fg.ST.loo.RDS")
+  
 # plot results
 labels.fg <- sprintf('%s %s', envs.fg,desc)
 plot(results.fg, labels.fg[test.ix.fg], type='pie')
 
 
+#Restructure results for plotting
+results.df.fg <- as_tibble(results.fg$proportions)
+results.df.fg$SampleID_Fix <- row.names(results.fg$proportions)
 
+results.df.fg.meta <- inner_join(results.df.fg, metadata_16s)
+
+grouped_res.fg <- group_by(results.df.fg.meta, FunGroup)
+#calculate mean of means + sd (sd(x)/sqrt(length(x)))
+avgs_res.fg <- summarise(grouped_res.fg, 
+                         mean_grass=100*mean(Grass), 
+                         sd_grass=100*sd(Grass)/sqrt(length(Grass)),
+                         mean_forb=100*mean(Forb), 
+                         sd_forb=100*sd(Forb)/sqrt(length(Forb)),
+                         mean_soil=100*mean(Background_soil), 
+                         sd_soil=100*sd(Background_soil)/sqrt(length(Background_soil)),
+                         mean_unknown=100*mean(Unknown), 
+                         sd_unknown=100*sd(Unknown)/sqrt(length(Unknown)))
+
+avgs_res.fg.df <- data.frame("Source" = c('grass', 'forb', 'background soil', 'unknown'), "mean" = c(40.3419,42.13405,8.56619,8.957857), "sd" = c(1.325134,1.142347, 0.4818445,0.5978808))
+
+kable(avgs_res.fg.df, caption = "% of community from source")
+# 
+# |Source          |      mean|        sd|
+#   |:---------------|---------:|---------:|
+#   |grass           | 40.341900| 1.3251340|
+#   |forb            | 42.134050| 1.1423470|
+#   |background soil |  8.566190| 0.4818445|
+#   |unknown         |  8.957857| 0.5978808|
+
+ggplot(avgs_res.fg.df, aes(x = Source, y = mean, fill = Source)) + 
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
+                width = .4, position = position_dodge(.9)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
+        text = element_text(size = 20)) + 
+  ylab("Mean % Community from Source during Competition")
 
 #### Sourcetracker: ITS ####
 
@@ -4287,14 +4355,43 @@ st.its <- sourcetracker(asvs_its[train.ix.its,], envs.its[train.ix.its])
 # Results seemed to be: 20% background, 80% unknown - Much less than the 16S!
 
 # Estimate source proportions in test data
-results.its <- predict(st.its,asvs_its[test.ix.its,], alpha1=alpha1, alpha2=alpha2)
+#results.its <- predict(st.its,asvs_its[test.ix.its,], alpha1=alpha1, alpha2=alpha2)
+
+results.its <- readRDS("Data/source_tracker/its.treatment.ST.RDS")
 
 # Estimate leave-one-out source proportions in training data 
-results.train.its <- predict(st.its, alpha1=alpha1, alpha2=alpha2)
+#results.train.its <- predict(st.its, alpha1=alpha1, alpha2=alpha2)
+
+results.train.its <- readRDS("Data/source_tracker/its.treatment.ST.loo.RDS")
+
 
 # plot results
 labels.its <- sprintf('%s %s', envs.its,desc)
 plot(results.its, labels.its[test.ix.its], type='pie')
+
+
+#Restructure results for plotting
+results.df.its <- as_tibble(results.its$proportions)
+results.df.its$SampleID_Fix <- row.names(results.its$proportions)
+
+results.df.its.meta <- inner_join(results.df.its, metadata_its)
+
+grouped_res.its <- group_by(results.df.its.meta, TreatmentName)
+#calculate mean of means + sd (sd(x)/sqrt(length(x)))
+avgs_res.its <- summarise(grouped_res.its, mean=100*mean(Background_soil), sd=100*sd(Background_soil)/sqrt(length(Background_soil)))
+
+#Plot % community from background soil (rest of community is thus 'unknown')
+ggplot(avgs_res.its, aes(x = TreatmentName, y = mean, fill = TreatmentName)) + 
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
+                width = .4, position = position_dodge(.9)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
+        text = element_text(size = 20)) + 
+  ylab("Mean % Community from Background Soil")
+
+kable(avgs_res.its, caption = "% of community from background soil")
+
 
 # other plotting functions
 # plot(results, labels[test.ix], type='bar')
@@ -4326,14 +4423,107 @@ st.fg.its <- sourcetracker(asvs_its[train.ix.fg.its,], envs.fg.its[train.ix.fg.i
 # Results seemed to be: 4% background soil, 45% forb, 25% grass, 25% unknown
 
 # Estimate source proportions in test data
-results.fg.its <- predict(st.fg.its,asvs_its[test.ix.fg.its,], alpha1=alpha1, alpha2=alpha2)
+#results.fg.its <- predict(st.fg.its,asvs_its[test.ix.fg.its,], alpha1=alpha1, alpha2=alpha2)
+
+results.fg.its <- readRDS("Data/source_tracker/its.fg.ST.RDS")
 
 # Estimate leave-one-out source proportions in training data 
-results.train.fg.its <- predict(st.fg.its, alpha1=alpha1, alpha2=alpha2)
+#results.train.fg.its <- predict(st.fg.its, alpha1=alpha1, alpha2=alpha2)
+
+results.train.fg.its <- readRDS("Data/source_tracker/its.fg.ST.loo.RDS")
 
 # plot results
 labels.fg.its <- sprintf('%s %s', envs.fg.its,desc)
 plot(results.fg.its, labels.fg.its[test.ix.fg.its], type='pie')
+
+
+
+#Restructure results for plotting
+results.df.fg.its <- as_tibble(results.fg.its$proportions)
+results.df.fg.its$SampleID_Fix <- row.names(results.fg.its$proportions)
+
+results.df.fg.meta.its <- inner_join(results.df.fg.its, metadata_its)
+
+grouped_res.fg.its <- group_by(results.df.fg.meta.its, FunGroup)
+#calculate mean of means + sd (sd(x)/sqrt(length(x)))
+avgs_res.fg.its <- summarise(grouped_res.fg.its, 
+                         mean_grass=100*mean(Grass), 
+                         sd_grass=100*sd(Grass)/sqrt(length(Grass)),
+                         mean_forb=100*mean(Forb), 
+                         sd_forb=100*sd(Forb)/sqrt(length(Forb)),
+                         mean_soil=100*mean(Background_soil), 
+                         sd_soil=100*sd(Background_soil)/sqrt(length(Background_soil)),
+                         mean_unknown=100*mean(Unknown), 
+                         sd_unknown=100*sd(Unknown)/sqrt(length(Unknown)))
+
+avgs_res.fg.its.df <- data.frame("Source" = c('grass', 'forb', 'background soil', 'unknown'), "mean" = c(38.87845,32.64786,5.160238,23.31345), "sd" = c(2.263107,2.005945, 0.6747386,2.107941))
+
+kable(avgs_res.fg.its.df, caption = "% of community from source")
+# 
+# |Source          |      mean|        sd|
+#   |:---------------|---------:|---------:|
+#   |grass           | 38.878450| 2.2631070|
+#   |forb            | 32.647860| 2.0059450|
+#   |background soil |  5.160238| 0.6747386|
+#   |unknown         | 23.313450| 2.1079410|
+
+ggplot(avgs_res.fg.its.df, aes(x = Source, y = mean, fill = Source)) + 
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
+                width = .4, position = position_dodge(.9)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = -70, hjust = 0, vjust = .5),
+        text = element_text(size = 20)) + 
+  ylab("Mean % Community from Source during Competition")
+
+
+### Stats on sourcetracker  ###
+
+## 16S ##
+
+#The null hypothesis of these tests is that “sample distribution is normal”. 
+#If the test is significant, the distribution is non-normal.
+shapiro.test(grouped_res.fg$Grass) #normal
+shapiro.test(grouped_res.fg$Forb) #normal
+shapiro.test(grouped_res.fg$Background_soil) #non-normal
+shapiro.test(grouped_res.fg$Unknown) #non-normal
+
+#Probably should use a KW Test? But would need to reformat data so groupings work
+#In mean time....
+
+#Do grasses have the same mean as Forbs? 
+wilcox.test(grouped_res.fg$Grass, grouped_res.fg$Forb) # p-value = 0.3413
+wilcox.test(grouped_res.fg$Unknown, grouped_res.fg$Background_soil) #p-value = 0.6604
+#rest are significant (can run if neeed)
+
+## ITS ##
+
+#The null hypothesis of these tests is that “sample distribution is normal”. 
+#If the test is significant, the distribution is non-normal.
+shapiro.test(grouped_res.fg.its$Grass) #non-normal
+shapiro.test(grouped_res.fg.its$Forb) #non-normal
+shapiro.test(grouped_res.fg.its$Background_soil) #non-normal
+shapiro.test(grouped_res.fg.its$Unknown) #non-normal
+
+#Probably should use a KW Test? But would need to reformat data so groupings work
+#In mean time....
+
+#Do grasses have the same mean as Forbs? 
+wilcox.test(grouped_res.fg.its$Grass, grouped_res.fg.its$Forb) # p-value = 0.06625
+#rest are significant (can run if neeed)
+
+## Comparions ##
+
+#ITS vs. 16S comparisons
+wilcox.test(grouped_res.fg$Background_soil, grouped_res.fg.its$Background_soil) #p-value = 2.192e-09
+wilcox.test(grouped_res.fg$Unknown, grouped_res.fg.its$Unknown) #p-value = 5.575e-09
+wilcox.test(grouped_res.fg$Forb, grouped_res.fg.its$Forb) #p-value = 0.0001254
+wilcox.test(grouped_res.fg$Grass, grouped_res.fg.its$Grass) #p-value = 0.3317
+
+
+
+
+
 
 #### Biomass effects ####
 hist(log(mapping$Weight.g))
