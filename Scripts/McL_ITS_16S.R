@@ -150,6 +150,20 @@ tax_table(ps.ITS.nocontrols) <- ITS.tax
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
 #write.table(t(otu_table(ps.nocontrols.16s.rare9434)), "Data/ps.nocontrols.16s.rare9434.transposed.txt", sep = "\t")
 
+# Collapse to Family level for Halla 
+#ps.nocontrols.16s.rare9434.FAM <- tax_glom(ps.nocontrols.16s.rare9434, taxrank = "Family", NArm = FALSE)
+
+#ps.nocontrols.16s.rare9434.FAM.otu <- as.data.frame(t(otu_table(ps.nocontrols.16s.rare9434.FAM)))
+#ps.nocontrols.16s.rare9434.FAM.otu$ASV <- row.names(ps.nocontrols.16s.rare9434.FAM.otu)
+
+#tax.16s.tib <- as_tibble(tax.16s)
+#tax.16s.tib$ASV <- row.names(tax.16s)
+
+#Add taxonomy info so can use family in building hallagram
+#halla.fam <- inner_join(ps.nocontrols.16s.rare9434.FAM.otu, tax.16s.tib, by="ASV")
+#write.table(halla.fam, "Data/ps.nocontrols.16s.rare9434.transposed.family.txt", sep = "\t")
+
+
 #Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
 #write.csv(otu_table(ps.nocontrols.16s.rare9434), "Data/ps.nocontrols.16s.rare9434.csv")
 #write.csv(sample_data(ps.nocontrols.16s.rare9434), "Data/ps.nocontrols.16s.rare9434.mappingdata.csv")
@@ -167,6 +181,16 @@ ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 
 # Save for first pass at Halla (https://huttenhower.sph.harvard.edu/halla)
 #write.table(t(otu_table(ps.nocontrols.its.rare7557)), "Data/ps.nocontrols.its.rare7557.transposed.txt", sep = "\t")
 
+#ps.nocontrols.its.rare7557.FAM <- tax_glom(ps.nocontrols.its.rare7557, taxrank = "Family", NArm = FALSE)
+
+#ps.nocontrols.its.rare7557.FAM.otu <- as.data.frame(t(otu_table(ps.nocontrols.its.rare7557.FAM)))
+#ps.nocontrols.its.rare7557.FAM.otu$ASV <- row.names(ps.nocontrols.its.rare7557.FAM.otu)
+
+#ITS.tax.tib <- as_tibble(ITS.tax)
+#ITS.tax.tib$ASV <- row.names(ITS.tax)
+
+#halla.fam.its <- inner_join(ps.nocontrols.its.rare7557.FAM.otu, ITS.tax.tib, by="ASV")
+#write.table(halla.fam.its, "Data/ps.nocontrols.its.rare7557.transposed.family.txt", sep = "\t")
 
 
 #Save for first pass sourcetracker (https://github.com/danknights/sourcetracker/)
@@ -4519,7 +4543,6 @@ wilcox.test(grouped_res.fg$Background_soil, grouped_res.fg.its$Background_soil) 
 wilcox.test(grouped_res.fg$Unknown, grouped_res.fg.its$Unknown) #p-value = 5.575e-09
 wilcox.test(grouped_res.fg$Forb, grouped_res.fg.its$Forb) #p-value = 0.0001254
 wilcox.test(grouped_res.fg$Grass, grouped_res.fg.its$Grass) #p-value = 0.3317
-
 
 
 
