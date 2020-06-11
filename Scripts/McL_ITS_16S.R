@@ -4199,9 +4199,9 @@ st <- sourcetracker(asvs_16s[train.ix,], envs[train.ix])
 # Maybe Marina can try running??? Or Cassie can put the data on the cluster!
 
 # Estimate source proportions in test data
-#results <- predict(st,asvs_16s[test.ix,], alpha1=alpha1, alpha2=alpha2)
+#results <- predict(st,asvs_16s[test.ix,], alpha1=alpha1, alpha2=alpha2, fu )
 
-results <- readRDS("Data/source_tracker/16s.treatment.ST.RDS")
+results <- readRDS("Data/source_tracker/sourcetracker/16s.treatment.ST.RDS")
 
 # Estimate leave-one-out source proportions in training data 
 # results.train <- predict(st, alpha1=alpha1, alpha2=alpha2)
@@ -4287,6 +4287,19 @@ results.df.fg <- as_tibble(results.fg$proportions)
 results.df.fg$SampleID_Fix <- row.names(results.fg$proportions)
 
 results.df.fg.meta <- inner_join(results.df.fg, metadata_16s)
+
+#scatter plot with 
+#Contours from a 2-dimensional Gaussian kernel 
+#used for density estimation and delineate dense clusters of data points
+ggplot(results.df.fg.meta, aes(x = 100*Forb, y = 100*Grass)) + 
+  geom_point() + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, vjust = .5),
+        text = element_text(size = 20)) +geom_density_2d(colour='#999999')+
+  ylab("% Community from Grass") +
+  xlab("% Community from Forb")
+
+
 
 grouped_res.fg <- group_by(results.df.fg.meta, FunGroup)
 #calculate mean of means + sd (sd(x)/sqrt(length(x)))
@@ -4468,6 +4481,25 @@ results.df.fg.its$SampleID_Fix <- row.names(results.fg.its$proportions)
 
 results.df.fg.meta.its <- inner_join(results.df.fg.its, metadata_its)
 
+
+#scatter plot with 
+#Contours from a 2-dimensional Gaussian kernel 
+#used for density estimation and delineate dense clusters of data points
+ggplot(results.df.fg.meta.its, aes(x = 100*Forb, y = 100*Grass)) + 
+  geom_point() + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, vjust = .5),
+        text = element_text(size = 20)) +geom_density_2d(colour='#999999')+
+  ylab("% Community from Grass") +
+  xlab("% Community from Forb")
+
+
+
+
+
+
+
+
 grouped_res.fg.its <- group_by(results.df.fg.meta.its, FunGroup)
 #calculate mean of means + sd (sd(x)/sqrt(length(x)))
 avgs_res.fg.its <- summarise(grouped_res.fg.its, 
@@ -4481,6 +4513,7 @@ avgs_res.fg.its <- summarise(grouped_res.fg.its,
                          sd_unknown=100*sd(Unknown)/sqrt(length(Unknown)))
 
 avgs_res.fg.its.df <- data.frame("Source" = c('grass', 'forb', 'background soil', 'unknown'), "mean" = c(38.87845,32.64786,5.160238,23.31345), "sd" = c(2.263107,2.005945, 0.6747386,2.107941))
+
 
 kable(avgs_res.fg.its.df, caption = "% of community from source")
 # 
