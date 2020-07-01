@@ -4333,6 +4333,57 @@ ggplot(avgs_res.fg.df, aes(x = Source, y = mean, fill = Source)) +
         text = element_text(size = 20)) + 
   ylab("Mean % Community from Source during Competition")
 
+
+
+##  get specific ASVs predicted to be sinked ##
+
+#load in full results
+results.fg.fr <- readRDS("Data/source_tracker/sourcetracker/16s.fg.ST.fr.RDS")
+
+#set output directory
+outdir <- ("Data/source_tracker/sourcetracker")
+
+#set filebase - I think this is just 'sink_predictions' here - online there was also a 'source_predictions' but I think thats not what we want?
+filebase <- 'sink_predictions'
+
+#source tracker get full results  
+# get average of full results across restarts
+res.mean <- apply(results.fg.fr$full.results,c(2,3,4),mean)
+
+# Get depth of each sample for relative abundance calculation
+sample.depths <- apply(results.fg.fr$full.results[1,,,,drop=F],4,sum)
+
+# create dir
+subdir <- paste(outdir,'full_results',sep='/')
+dir.create(subdir,showWarnings=FALSE, recursive=TRUE)
+# write each env separate file
+for(i in 1:length(results.fg.fr$train.envs)){
+  env.name <- results.fg.fr$train.envs[i]
+  filename.fractions <- sprintf('%s/%s_%s_contributions.txt', subdir, filebase, env.name)
+  res.mean.i <- res.mean[i,,]
+  # handle the case where there is only one sink sample
+  if(is.null(dim(res.mean.i))) res.mean.i <- matrix(res.mean.i,ncol=1)
+  
+  # make rows be samples, columns be features
+  res.mean.i <- t(res.mean.i)
+  
+  # ensure proper names
+  colnames(res.mean.i) <- colnames(asvs_16s)
+  rownames(res.mean.i) <- results.fg.fr$samplenames
+  
+  # calculate and save relative abundance
+  res.mean.i.ra <- sweep(res.mean.i,1,sample.depths,'/')
+  sink(filename.fractions)
+  cat('SampleID\t')
+  write.table(res.mean.i.ra,quote=F,sep='\t')
+  sink(NULL) 
+}
+
+
+
+
+
+
 #### Sourcetracker: ITS ####
 
 #Load ITS metadata
@@ -4532,6 +4583,61 @@ ggplot(avgs_res.fg.its.df, aes(x = Source, y = mean, fill = Source)) +
   theme(axis.text.x = element_text(angle = -70, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
   ylab("Mean % Community from Source during Competition")
+
+
+##  get specific ASVs predicted to be sinked ##
+
+#load in full results
+results.fg.its.fr <- readRDS("Data/source_tracker/sourcetracker/its.fg.ST.fr.RDS")
+
+#set output directory
+outdir <- ("Data/source_tracker/sourcetracker")
+
+#set filebase - I think this is just 'sink_predictions' here - online there was also a 'source_predictions' but I think thats not what we want?
+filebase <- 'sink_predictions'
+
+#source tracker get full results  
+# get average of full results across restarts
+res.mean <- apply(results.fg.its.fr$full.results,c(2,3,4),mean)
+
+# Get depth of each sample for relative abundance calculation
+sample.depths <- apply(results.fg.its.fr$full.results[1,,,,drop=F],4,sum)
+
+# create dir
+subdir <- paste(outdir,'full_results_its',sep='/')
+dir.create(subdir,showWarnings=FALSE, recursive=TRUE)
+# write each env separate file
+for(i in 1:length(results.fg.its.fr$train.envs)){
+  env.name <- results.fg.its.fr$train.envs[i]
+  filename.fractions <- sprintf('%s/%s_%s_contributions.txt', subdir, filebase, env.name)
+  res.mean.i <- res.mean[i,,]
+  # handle the case where there is only one sink sample
+  if(is.null(dim(res.mean.i))) res.mean.i <- matrix(res.mean.i,ncol=1)
+  
+  # make rows be samples, columns be features
+  res.mean.i <- t(res.mean.i)
+  
+  # ensure proper names
+  colnames(res.mean.i) <- colnames(asvs_its)
+  rownames(res.mean.i) <- results.fg.its.fr$samplenames
+  
+  # calculate and save relative abundance
+  res.mean.i.ra <- sweep(res.mean.i,1,sample.depths,'/')
+  sink(filename.fractions)
+  cat('SampleID\t')
+  write.table(res.mean.i.ra,quote=F,sep='\t')
+  sink(NULL) 
+}
+
+
+
+
+
+
+
+
+
+
 
 
 ### Stats on sourcetracker  ###
