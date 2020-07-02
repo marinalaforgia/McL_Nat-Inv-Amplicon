@@ -140,6 +140,17 @@ ITS.tax <- as.matrix(df.ITS.tax)
 
 tax_table(ps.ITS.nocontrols) <- ITS.tax
 
+
+
+#removing chloroplasts, mitochondria FOR SILVA 132
+ps.16s.nocontrols <- subset_taxa(ps.16s.nocontrols, Order !="Chloroplast") 
+ps.16s.nocontrols <- subset_taxa(ps.16s.nocontrols, Family != "Mitochondria")
+
+
+
+
+
+
 #### Rarefied Data ####
 
 ## 16S ##
@@ -173,6 +184,9 @@ ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434
 ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
 
 
+
+
+
 ## ITS ##
 # ps.nocontrols.its.rare7557 <- rarefy_even_depth(ps.ITS.nocontrols, 7557, replace = FALSE, rngseed = 5311)
 # saveRDS(ps.nocontrols.its.rare7557, "Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds")
@@ -201,6 +215,15 @@ ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 
 # Load 
 ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
 ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
+
+
+
+## 16s ##
+
+#removing chloroplasts, mitochondria FOR SILVA 132
+ps.16s.nocontrols.rare <- subset_taxa(ps.16s.nocontrols.rare, Order !="Chloroplast") 
+ps.16s.nocontrols.rare <- subset_taxa(ps.16s.nocontrols.rare, Family != "Mitochondria")
+
 
 
 ## 16s ##
@@ -488,15 +511,23 @@ df_ASV <- psmelt(AvgRA99_ASV)
 grouped_ASV <- group_by(df_ASV, FunGroup, OTU, Genus, Family, Order, Class, Phylum, Kingdom)
 avgs_ASV <- summarise(grouped_ASV, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
 
-ggplot(avgs_ASV, aes(x = OTU, y = mean, fill = Genus)) + 
+
+avgs_ASV$FunGroup <- factor(avgs_ASV$FunGroup, levels = c("Forb", "Grass", "grass_x_forb"), 
+          labels = c("Forb", "Grass", "Competition"))
+
+asv_16s_bar <- ggplot(avgs_ASV, aes(x = OTU, y = mean, fill = Genus)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - se), ymax = (mean + se)), 
                 width = .4, position = position_dodge(.9)) +
-  facet_wrap(~FunGroup, nrow = 3) + 
-  theme_classic() +
+  facet_wrap(~FunGroup, nrow = 3) +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean Relative Abundance")
+  ylab("Mean Relative Abundance") +
+  theme_bw(base_size = 15) +
+  scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", "#F0E442"))+ 
+  xlab("ASV")
+
+ggsave("Figures/ASV_16s_bar.jpg", asv_16s_bar, width = 5, height = 5, units = "in", dpi = 600)
 
 
 listofcats_sig = NULL
@@ -622,7 +653,10 @@ df_ASV <- psmelt(AvgRA99_ASV)
 grouped_ASV <- group_by(df_ASV, FunGroup, OTU, Order, Class, Phylum, Kingdom)
 avgs_ASV <- summarise(grouped_ASV, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
 
-ggplot(avgs_ASV, aes(x = OTU, y = mean, fill = Order)) + 
+avgs_ASV$FunGroup <- factor(avgs_ASV$FunGroup, levels = c("Forb", "Grass", "grass_x_forb"), 
+                            labels = c("Forb", "Grass", "Competition"))
+
+its_bar_plot <- ggplot(avgs_ASV, aes(x = OTU, y = mean, fill = Order)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - se), ymax = (mean + se)), 
                 width = .4, position = position_dodge(.9)) +
@@ -630,7 +664,13 @@ ggplot(avgs_ASV, aes(x = OTU, y = mean, fill = Order)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean Relative Abundance")
+  ylab("Mean Relative Abundance")+
+  theme_bw(base_size = 15) +
+  scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                               "#F0E442", "#0072B2", "#D55E00", "#CC79A7"))+ 
+  xlab("ASV")
+
+ggsave("Figures/ASV_its_bar.jpg", its_bar_plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 listofcats_sig = NULL
@@ -748,20 +788,35 @@ kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Order (16S): G v F ####
 ## Is this code correct? double check, ITS uses tax_glom; Also I changed this to look at family, that might make more sense however given that we probably arent using this anymore I'm not going through an changing them all
-AvgRA99_Order <- filter_taxa(ps.16s.nocontrols.rare.RA, function(x) mean(x) > .007, TRUE)
+# tax glom sums all ASVs that match the taxonomy (filter taxa works on individual ASVs)
+# AvgRA99_Order <- filter_taxa(ps.16s.nocontrols.rare.RA, function(x) mean(x) > .007, TRUE)
+AvgRA99_Order <- tax_glom(ps.16s.nocontrols.rare.RA, taxrank = "Family", NArm = FALSE)
+AvgRA99_Order <- filter_taxa(AvgRA99_Order, function(x) mean(x) > .02, TRUE)
 df_Order <- psmelt(AvgRA99_Order)
 grouped_Order <- group_by(df_Order, FunGroup, Family, Order, Class, Phylum, Kingdom)
 avgs_Order <- dplyr::summarise(grouped_Order, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
 
-ggplot(avgs_Order, aes(x = Family, y = mean, fill = Order)) + 
+
+avgs_Order$FunGroup <- factor(avgs_Order$FunGroup, levels = c("Forb", "Grass", "Competition"), 
+                            labels = c("Forb", "Grass", "Competition"))
+
+family_bar_plot <- ggplot(avgs_Order, aes(x = Family, y = mean, fill = Phylum)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - se), ymax = (mean + se)), 
                 width = .4, position = position_dodge(.9)) +
   facet_wrap(~FunGroup, nrow = 3) + 
-  theme_classic() +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean Relative Abundance")
+  ylab("Mean Relative Abundance")+
+  xlab("ASV") +
+  scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                               "#F0E442",  "#CC79A7", "#D55E00","#0072B2"))
+
+
+ggsave("Figures/family_16s_bar.jpg", family_bar_plot, width = 7, height = 7, units = "in", dpi = 600)
+
+
 
 
 listofcats_sig = NULL
@@ -879,22 +934,31 @@ df_taxa <- data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.du
 kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Order (ITS):  G v F ####
-AvgRA_g <- tax_glom(ps.ITS.nocontrols.rare.RA, taxrank = "Order", NArm = FALSE)
-AvgRA99_Order <- filter_taxa(AvgRA_g, function(x) var(x) > .006, TRUE)
+AvgRA_g <- tax_glom(ps.ITS.nocontrols.rare.RA, taxrank = "Family", NArm = FALSE)
+AvgRA99_Order <- filter_taxa(AvgRA_g, function(x) mean(x) > .02, TRUE)
 df_Order <- psmelt(AvgRA99_Order)
-grouped_Order <- group_by(df_Order, FunGroup, Order, Class, Phylum, Kingdom)
+grouped_Order <- group_by(df_Order, FunGroup, Family, Order, Class, Phylum, Kingdom)
 avgs_Order <- summarise(grouped_Order, mean=100*mean(Abundance), sd=100*sd(Abundance), se=100*se(Abundance))
 
-ggplot(avgs_Order, aes(x = Order, y = mean, fill = Phylum)) + 
+
+avgs_Order$FunGroup <- factor(avgs_Order$FunGroup, levels = c("Forb", "Grass", "grass_x_forb"), 
+                              labels = c("Forb", "Grass", "Competition"))
+
+family_its_bar_plot <- ggplot(avgs_Order, aes(x = Family, y = mean, fill = Phylum)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - se), ymax = (mean + se)), 
                 width = .4, position = position_dodge(.9)) +
   facet_wrap(~FunGroup, nrow = 3) + 
-  theme_classic() +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean Relative Abundance")
+  ylab("Mean Relative Abundance")+
+  xlab("ASV") +
+  scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                               "#F0E442",  "#CC79A7", "#D55E00","#0072B2"))
 
+
+ggsave("Figures/family_its_bar.jpg", family_its_bar_plot, width = 8, height = 7, units = "in", dpi = 600)
 
 listofcats_sig = NULL
 DataSet = df_Order
@@ -1153,6 +1217,23 @@ dist_ITS <- vegdist(otu_table(man.ITS), method = "bray")
 dist_16s <- vegdist(otu_table(man.16s), method = "bray") 
 
 mantel(dist_ITS, dist_16s, method = "pearson", permutations = 9999) # non parametric, they are highly correlated
+
+#x axis are bins of 2nd matrix, depicted at the middle of the bin
+#so the x axis represents bray curtis dissimilarities of fungal communities
+mantel.corr = vegan::mantel.correlog(dist_16s, dist_ITS, nperm = 999)
+
+jpeg("Figures/mantel.corr.fungal_braycurtis_xaxis.jpg", width = 5, height = 4, units = "in", res = 600 )
+plot(mantel.corr) # does this indicate that as fungal bc increases (communities are more similar), bacterial communities also get more similar?
+dev.off()
+
+#x axis are bins of 2nd matrix, depicted at the middle of the bin
+#so the x axis represents bray curtis dissimilarities of bacterial communities
+mantel.corr.rev = vegan::mantel.correlog(dist_ITS, dist_16s, nperm = 999)
+
+jpeg("Figures/mantel.corr.bacteria_braycurtis_xaxis.jpg", width = 5, height = 4, units = "in", res = 600 )
+plot(mantel.corr.rev) #not sure what this curve shape means
+dev.off()
+
 
 # do a (generalized) linear model linear model
 m.man <- lm(dist_ITS ~ dist_16s)
@@ -3118,7 +3199,7 @@ contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
 
 
 plot.name.list <- list(F.G = "Forb vs. Grass",
-                       FG.G = "Forb x grass vs. Grass")
+                       FG.G = "Competition vs. Grass")
 
 alpha = 0.01
 res.list <- list()
@@ -3137,6 +3218,7 @@ for(i in contrasts) {
   
   #generate plot of significant ASVs for each contrast
   # Order order
+  
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
@@ -3145,7 +3227,9 @@ for(i in contrasts) {
   x = sort(x, TRUE)
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                                 "#F0E442",  "#CC79A7", "#D55E00","#0072B2"))+ ylab(expression(paste("lo", g[2]," fold change")))
   plot.list[[i]] = p
 }
 
@@ -3177,11 +3261,11 @@ contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
 
 
 plot.name.list <- list(G.F = "Grass vs. Forb",
-                       FG.F = "Forb x grass vs. Forb")
+                       FG.F = "Competion vs. Forb")
 
 alpha = 0.01
 res.list <- list()
-plot.list <- list()
+plot.list.cp2 <- list()
 
 for(i in contrasts) {
   #get results for each contrast
@@ -3198,18 +3282,23 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  
+  res.alpha.tax$Order <- factor(as.character(res.alpha.tax$Order), levels = c("Betaproteobacteriales", "Flavobacteriales", "Selenomonadales", "Sphingobacteriales", "Rickettsiales"))
+  
   # Genus order
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot.list[[i]] = p
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]]) +
+    scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                                 "#F0E442",  "#CC79A7", "#D55E00","#0072B2")) + ylab(expression(paste("lo", g[2]," fold change")))
+  plot.list.cp2[[i]] = p
 }
 
 #plot results
 
-plot.list$G.F+ plot.list$FG.F 
+plot.list.cp2$G.F+ plot.list.cp2$FG.F 
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
@@ -3217,6 +3306,19 @@ names(df.res)[1] <- "Contrast"
 names(df.res)[2] <- "ASV"
 
 write.csv(df.res, "Data/16s.ddseq.fungroup.v2.csv")
+
+
+
+
+
+combo_deseq <- plot.list.cp2$G.F + plot.list.cp2$FG.F + plot.list$FG.G 
+
+#oops this is ASV level, meant to do family level
+ggsave("Figures/deseq_all_16s_asv.jpeg", combo_deseq, width = 12, height = 5, units = "in", dpi = 600)
+
+
+
+
 
 # More ASVs are high abundance in grass x forb vs. forbs alone (vs. grass x forb vs. grasses alone)
 # Does this suggest that forbs shift more than grasses during competion?
@@ -3389,7 +3491,7 @@ contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
 
 
 plot.name.list <- list(F.G = "Forb vs. Grass",
-                       FG.G = "Forb x grass vs. Grass")
+                       FG.G = "Competition vs. Grass")
 
 alpha = 0.01
 res.list <- list()
@@ -3414,8 +3516,9 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
-  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Family)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]]) +
+    ylab(expression(paste("lo", g[2]," fold change")))
   plot.list[[i]] = p
 }
 
@@ -3451,11 +3554,11 @@ contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
 
 
 plot.name.list <- list(G.F = "Grass vs. Forb",
-                       FG.F = "Forb x grass vs. Forb")
+                       FG.F = "Competition vs. Forb")
 
 alpha = 0.01
 res.list <- list()
-plot.list <- list()
+plot.list.cp2 <- list()
 
 for(i in contrasts) {
   #get results for each contrast
@@ -3476,15 +3579,16 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
-  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Family)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot.list[[i]] = p
+  p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    ylab(expression(paste("lo", g[2]," fold change")))
+  plot.list.cp2[[i]] = p
 }
 
 
 #plot results
 
-plot.list$G.F+ plot.list$FG.F 
+plot.list.cp2$G.F+ plot.list.cp2$FG.F 
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
@@ -3495,9 +3599,21 @@ df.res.tax <- cbind(df.res, as(tax_table(ps.16s.nocontrols.fam)[df.res$ASV, ], "
 
 write.csv(df.res, "Data/16s.ddseq.fungroup.v2.fam.csv")
 
+
 # More families are high abundance in grass x forb vs. forbs alone (vs. grass x forb vs. grasses alone)
 # Does this suggest that forbs shift more than grasses during competion?
 # Or that grasses are stronger drivers of rhizosphere communities?
+
+
+
+
+combo_deseq_fam <- plot.list.cp2$G.F+ plot.list.cp2$FG.F + plot.list$FG.G
+
+ggsave("Figures/deseq_all_16s_fam.jpeg", combo_deseq_fam, width = 14, height = 6, units = "in", dpi = 600)
+
+
+
+
 
 
 ## 16S: Competition ##
@@ -3692,7 +3808,7 @@ contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
 
 
 plot.name.list <- list(F.G = "Forb vs. Grass",
-                       FG.G = "Forb x grass vs. Grass")
+                       FG.G = "Competition vs. Grass")
 
 alpha = 0.01
 res.list <- list()
@@ -3718,7 +3834,9 @@ for(i in contrasts) {
   x = sort(x, TRUE)
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    scale_color_manual(values = c("#E69F00", "#D55E00", "#56B4E9", "#009E73", 
+                                  "#F0E442",  "#CC79A7")) + ylab(expression(paste("lo", g[2]," fold change")))
   plot.list[[i]] = p
 }
 
@@ -3750,11 +3868,11 @@ contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
 
 
 plot.name.list <- list(G.F = "Grass vs. Forb",
-                       FG.F = "Forb x grass vs. Forb")
+                       FG.F = "Competition vs. Forb")
 
 alpha = 0.01
 res.list <- list()
-plot.list <- list()
+plot.list.cp2 <- list()
 
 for(i in contrasts) {
   #get results for each contrast
@@ -3771,18 +3889,22 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Order, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Order = factor(as.character(res.alpha.tax$Order), levels=names(x))
+  res.alpha.tax$Order <- factor(as.character(res.alpha.tax$Order), levels = c("Helotiales", "Pleosporales", "Pezizales", "Sebacinales", "Spizellomycetales", "Tremellodendropsidales"))
+  
   # Genus order
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Genus, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Genus = factor(as.character(res.alpha.tax$Genus), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Genus, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot.list[[i]] = p
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                                  "#F0E442",  "#CC79A7", "#D55E00","#0072B2")) + ylab(expression(paste("lo", g[2]," fold change")))
+  plot.list.cp2[[i]] = p
 }
 
 #plot results
 
-plot.list$G.F+ plot.list$FG.F 
+plot.list.cp2$G.F+ plot.list.cp2$FG.F 
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
@@ -3795,6 +3917,18 @@ write.csv(df.res, "Data/its.ddseq.fungroup.v2.csv")
 # Does this suggest that forbs shift more than grasses during competion?
 # Or that grasses are stronger drivers of rhizosphere communities?
 # See same results in 16S communities
+
+
+combo_deseq <- plot.list.cp2$G.F + plot.list.cp2$FG.F + plot.list$FG.G 
+
+ggsave("Figures/deseq_all_its_asvs.jpeg", combo_deseq, width = 12, height = 5, units = "in", dpi = 600)
+
+
+
+
+
+
+
 
 
 ## ITS: Competition ##
@@ -3962,7 +4096,7 @@ contrast.list <- list(F.G = c("FunGroup", "Forb", "Grass"),
 
 
 plot.name.list <- list(F.G = "Forb vs. Grass",
-                       FG.G = "Forb x grass vs. Grass")
+                       FG.G = "Competition vs. Grass")
 
 alpha = 0.01
 res.list <- list()
@@ -3988,7 +4122,9 @@ for(i in contrasts) {
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                                  "#F0E442",  "#CC79A7", "#D55E00","#0072B2")) + ylab(expression(paste("lo", g[2]," fold change")))
   plot.list[[i]] = p
 }
 
@@ -4022,11 +4158,11 @@ contrast.list <- list(G.F = c("FunGroup", "Grass", "Forb"),
 
 
 plot.name.list <- list(G.F = "Grass vs. Forb",
-                       FG.F = "Forb x grass vs. Forb")
+                       FG.F = "Competition vs. Forb")
 
 alpha = 0.01
 res.list <- list()
-plot.list <- list()
+plot.list.cp2 <- list()
 
 for(i in contrasts) {
   #get results for each contrast
@@ -4048,13 +4184,15 @@ for(i in contrasts) {
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
   p <- ggplot(res.alpha.tax, aes(x=Family, y=log2FoldChange, color=Order)) + geom_point(size=6) + 
-    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])
-  plot.list[[i]] = p
+    theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)) + ggtitle(plot.name.list[[i]])+
+    scale_color_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
+                                  "#F0E442",  "#CC79A7", "#D55E00","#0072B2")) + ylab(expression(paste("lo", g[2]," fold change")))
+  plot.list.cp2[[i]] = p
 }
 
 #plot results
 
-plot.list$G.F+ plot.list$FG.F 
+plot.list.cp2$G.F+ plot.list.cp2$FG.F 
 
 #tidy results into a table to save
 df.res <- plyr::ldply(res.list, function(x) x)
@@ -4064,6 +4202,13 @@ names(df.res)[2] <- "ASV"
 df.res.tax <- cbind(df.res, as(tax_table(ps.its.nocontrols.nobss)[df.res$ASV, ], "matrix"))
 
 write.csv(df.res, "Data/its.ddseq.fungroup.v2.fam.csv")
+
+
+combo_deseq <- plot.list.cp2$G.F + plot.list.cp2$FG.F + plot.list$FG.G 
+
+ggsave("Figures/deseq_all_its.jpeg", combo_deseq, width = 12, height = 5, units = "in", dpi = 600)
+
+
 
 
 
@@ -4291,14 +4436,16 @@ results.df.fg.meta <- inner_join(results.df.fg, metadata_16s)
 #scatter plot with 
 #Contours from a 2-dimensional Gaussian kernel 
 #used for density estimation and delineate dense clusters of data points
-ggplot(results.df.fg.meta, aes(x = 100*Forb, y = 100*Grass)) + 
+cont.16s <- ggplot(results.df.fg.meta, aes(x = 100*Forb, y = 100*Grass, color = grass )) + 
   geom_point() + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 0, vjust = .5),
         text = element_text(size = 20)) +geom_density_2d(colour='#999999')+
   ylab("% Community from Grass") +
-  xlab("% Community from Forb")
+  xlab("% Community from Forb") +
+  scale_color_manual("Grass species", values = c("#E69F00", "#0072B2", "#F0E442"))
 
+ggsave("Figures/sourcetracker_contour_16s.jpeg", cont.16s, width = 8, height = 5, units = "in", dpi = 600)
 
 
 grouped_res.fg <- group_by(results.df.fg.meta, FunGroup)
@@ -4324,16 +4471,18 @@ kable(avgs_res.fg.df, caption = "% of community from source")
 #   |background soil |  8.566190| 0.4818445|
 #   |unknown         |  8.957857| 0.5978808|
 
-ggplot(avgs_res.fg.df, aes(x = Source, y = mean, fill = Source)) + 
+source.16s <- ggplot(avgs_res.fg.df, aes(x = Source, y = mean, fill = Source)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
                 width = .4, position = position_dodge(.9)) + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean % Community from Source during Competition")
+  ylab("Mean % community derived from each source") +
+  scale_fill_manual(values = c("#CC79A7", "magenta4", "cyan4", "grey50")) + 
+  theme(legend.position = "none")
 
-
+ggsave("Figures/sourcetracker_percent_16s.jpeg", source.16s, width = 8, height = 8, units = "in", dpi = 600)
 
 ##  get specific ASVs predicted to be sinked ##
 
@@ -4536,15 +4685,17 @@ results.df.fg.meta.its <- inner_join(results.df.fg.its, metadata_its)
 #scatter plot with 
 #Contours from a 2-dimensional Gaussian kernel 
 #used for density estimation and delineate dense clusters of data points
-ggplot(results.df.fg.meta.its, aes(x = 100*Forb, y = 100*Grass)) + 
+
+cont.its <- ggplot(results.df.fg.meta.its, aes(x = 100*Forb, y = 100*Grass, color = grass )) + 
   geom_point() + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 0, vjust = .5),
         text = element_text(size = 20)) +geom_density_2d(colour='#999999')+
   ylab("% Community from Grass") +
-  xlab("% Community from Forb")
+  xlab("% Community from Forb") +
+  scale_color_manual("Grass species", values = c("#E69F00", "#0072B2", "#F0E442"))
 
-
+ggsave("Figures/sourcetracker_contour_its.jpeg", cont.its, width = 8, height = 5, units = "in", dpi = 600)
 
 
 
@@ -4575,14 +4726,20 @@ kable(avgs_res.fg.its.df, caption = "% of community from source")
 #   |background soil |  5.160238| 0.6747386|
 #   |unknown         | 23.313450| 2.1079410|
 
-ggplot(avgs_res.fg.its.df, aes(x = Source, y = mean, fill = Source)) + 
+source.its <- ggplot(avgs_res.fg.its.df, aes(x = Source, y = mean, fill = Source)) + 
   geom_bar(stat = "identity", position = position_dodge()) +
   geom_errorbar(aes(ymin = (mean - sd), ymax = (mean + sd)), 
                 width = .4, position = position_dodge(.9)) + 
   theme_classic() +
-  theme(axis.text.x = element_text(angle = -70, hjust = 0, vjust = .5),
+  theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
-  ylab("Mean % Community from Source during Competition")
+  ylab("Mean % community derived from each source") +
+  scale_fill_manual(values = c("#CC79A7", "magenta4", "cyan4", "grey50")) + 
+  theme(legend.position = "none")
+
+ggsave("Figures/sourcetracker_percent_its.jpeg", source.its, width = 8, height = 8, units = "in", dpi = 600)
+
+
 
 
 ##  get specific ASVs predicted to be sinked ##
