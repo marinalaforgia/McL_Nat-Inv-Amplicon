@@ -809,7 +809,7 @@ family_bar_plot <- ggplot(avgs_Order, aes(x = Family, y = mean, fill = Phylum)) 
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
   ylab("Mean Relative Abundance")+
-  xlab("ASV") +
+  xlab("Family") +
   scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
                                "#F0E442",  "#CC79A7", "#D55E00","#0072B2"))
 
@@ -953,7 +953,7 @@ family_its_bar_plot <- ggplot(avgs_Order, aes(x = Family, y = mean, fill = Phylu
   theme(axis.text.x = element_text(angle = -90, hjust = 0, vjust = .5),
         text = element_text(size = 20)) + 
   ylab("Mean Relative Abundance")+
-  xlab("ASV") +
+  xlab("Family") +
   scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73", 
                                "#F0E442",  "#CC79A7", "#D55E00","#0072B2"))
 
