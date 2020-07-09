@@ -1,12 +1,16 @@
 ### 16S and ITS Analysis April 2020 ###
 rm(list=ls())
 
+
 #### Setup ####
+
 
 #setwd("/Users/Marina/Documents/UC-Davis/Projects/McL_Nat-Inv-Amplicon") # Marina's Working Directory
 #setwd("/Users/Cassie/Documents/Dropbox/Greenhouse_ITS/McL_Nat-Inv-Amplicon") # Cassie's Working Directory
 
+
 #### Load Libraries ####
+
 
 library(EcolUtils)
 library(ggplot2)
