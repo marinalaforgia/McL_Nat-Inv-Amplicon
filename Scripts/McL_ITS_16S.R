@@ -301,6 +301,11 @@ permutest(C, permutations = 9999) # spread doesnt vary between functional group.
 #### Ordination (16S): spp ####
 
 ###
+# All species together
+###
+
+
+###
 # Forb Species
 ###
 
@@ -327,7 +332,7 @@ ps.16s.nocontrols.rare.spp.g <- subset_samples(ps.16s.nocontrols.rare.spp, forb 
 
 ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.g, "PCoA", "wunifrac")
 
-plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, shape = "Plant SpeciesSampled", color = "PlantSpeciesSampled") +
+plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, shape = "Plant SpeciesSampled", color = "PlantSpeciesSampled", label = "SampleID") +
   theme_bw(base_size = 20) +
   geom_point(size = 3) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) 
@@ -1079,7 +1084,7 @@ df_taxa <- data.frame(cats.dunn, comparison.dunn, Zsc.dunn, pvals.dunn, pvals.du
 kable(df_taxa, caption = "Significant Differences between Functional Groups")
 
 #### Alpha diveristy: 16S ####
-plot_richness(ps.16s.nocontrols.rare, measures = "Shannon", x = "FunGroup", color = "FunGroup") + 
+plot_richness(ps.16s.nocontrols.rare, measures = "Shannon", x = "Treatment", color = "FunGroup") + 
   theme(text = element_text(size=24)) + 
   geom_boxplot() + 
   geom_jitter() +
@@ -1107,7 +1112,7 @@ GL_Alpha2 <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
 #kruskal_test(Observed ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha2)
 
 GL_Alpha2$FunGroup <- as.factor(GL_Alpha2$FunGroup)
-kruskal_test(Shannon ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha2)
+kruskal_test(Shannon ~ Treatment, distribution = approximate(nresample = 9999), data = GL_Alpha2[GL_Alpha2$FunGroup == "Grass",])
 # breaking news: shannon diversity does vary
 
 dunnTest(Shannon ~ FunGroup, data = GL_Alpha2, method = "bh") # forbs have higher alpha diversity than grasses; competition treatments have marginally higher diversity than grasses, but not than forbs. forbs add diversity to competition
@@ -6008,7 +6013,7 @@ ITS.fam.df3$neighbor2 <- ifelse(ITS.fam.df3$FunGroup2 == "forb", "grass", "forb"
 # Tubeufiaceae #
 
 ## Abundance vs weight
-ggplot(ITS.fam.df[ITS.fam.df$Family == "f__Tubeufiaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
+ggplot(ITS.fam.df[ITS.fam.df$Family == "Ceratobasidiaceae",], aes(x = Abundance, y = log(weight.g + 0.01), col = g.f, group = g.f)) +
   geom_point() +
   geom_smooth(method = "lm", formula = y ~ x) +
   theme_bw() +
@@ -6018,7 +6023,7 @@ ggplot(ITS.fam.df[ITS.fam.df$Family == "f__Tubeufiaceae",], aes(x = Abundance, y
     plot.title = element_text(hjust = 0.5)
   ) +
   facet_wrap(~ Competion) + 
-  labs(title = "Tubeufiaceae", y = "Log Weight (g)")
+  labs(title = "Ceratobasidiaceae", y = "Log Weight (g)")
 
 m.f.wt <- lmer(log(weight.g + 0.01) ~ Abundance * FunGroup + (1|Treatment), data = ITS.fam.df[ITS.fam.df$Family == "f__Tubeufiaceae",])
 plot(fitted(m.f.wt), resid(m.f.wt))
@@ -6049,3 +6054,464 @@ ggplot(ITS.fam.df3[ITS.fam.df3$Family == "f__Tubeufiaceae",], aes(x = Abundance,
 # qqnorm(resid(m.f.lrr))
 # qqline(resid(m.f.lrr))
 # summary(m.f.lrr)
+
+
+
+# 
+# biomass <- biomass %>% 
+#          group_by(SampleNumber) %>%
+#          mutate(slope = (weight.d[FunGroup2=="forb"] - weight.d[FunGroup2=="grass"])/(2-1))
+
+# biomass2 <- ddply(biomass, .(SampleNumber), mutate, slope = (weight.d[FunGroup2 == "forb"] - weight.d[FunGroup2=="grass"])/(2-1))
+
+# biomass2$slope <- as.numeric(biomass2$slope)
+# biomass2$FunGroup2 <- ifelse(biomass2$FunGroup2 == "grass", 1, 2)
+# 
+# ggplot(biomass2, 
+#        aes(x = FunGroup2, y = weight.d, group = SampleNumber)) + 
+#   geom_line(aes(col = slope)) +
+#   #geom_point(aes(col = Species)) +
+#   theme_bw(base_size = 15) +
+#   #facet_wrap(~Treatment, ncol = 6) +
+#   scale_color_gradient2()
+# 
+# ggplot(biomass2, 
+#        aes(x = FunGroup2, y = weight.d, group = FunGroup2)) + 
+#   geom_boxplot() +
+#   #geom_point(aes(col = Species)) +
+#   theme_bw(base_size = 15) +
+#   facet_wrap(~Treatment, ncol = 6) +
+# 
+# 
+# # structured like gremer 2013
+# test <- biomass2[,c(1,8,11,36,37,38)]
+# test.f <- filter(test, FunGroup2 == 2)
+# test.f$target <- "forb"
+# test.f$neighbor <- "grass"
+# test.f$neighbor.sp <- substr(test.f$Treatment, start = 1, stop = 2)
+#   
+# test.g <- filter(test, FunGroup2 == 1)
+# test.g$target <- "grass"
+# test.g$neighbor <- "forb"
+# test.g$neighbor.sp <- substr(test.g$Treatment, start = 3, stop = 4)
+# test <- rbind(test.f, test.g)
+# 
+# m.bio <- lmer(slope ~ Species - 1 + (1|neighbor.sp), test[test$FunGroup2 == 2,]) # is this the right way to show this?
+# summary(m.bio)
+# anova(m.bio)
+# 
+# m.bio <- lm(slope ~ as.factor(FunGroup2), biomass2) # is this the right way to show this?
+# summary(m.bio)
+# anova(m.bio)
+
+
+#### Models: LRR v NA (16S) - Spp ####
+fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Veillonellaceae", "Clostridiaceae_1", "Rhodocyclaceae")
+
+Species <- unique(biomass$Species)
+group <- c("grass", "forb")
+fam.16s <- c(fam2, as.character(fam3))
+lrr.16s.m.spp <- expand.grid(Family = fam.16s, Species = Species, est = NA, se = NA, p = NA)
+
+for(i in fam.16s) {
+  for(j in Species){
+  tmp <- lm(weight.d ~ norm.counts, data = lrr.fam.16s.spp[lrr.fam.16s.spp$Family == i & lrr.fam.16s.spp$Species == j,])
+  lrr.16s.m.spp[lrr.16s.m.spp$Family == i & lrr.16s.m.spp$Species == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+    lrr.16s.m.spp[lrr.16s.m.spp$Family == i & lrr.16s.m.spp$Species == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      lrr.16s.m.spp[lrr.16s.m.spp$Family == i & lrr.16s.m.spp$Species == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+lrr.16s.m.spp$lines <- ifelse(lrr.16s.m.spp$p < 0.05, "0", "1")
+
+lrr.fam.16s.spp <- merge(lrr.fam.16s.spp, lrr.16s.m.spp, by = c("Family", "Species"))
+#### Models: LRR v NA (ITS - Spp) ####
+Species <- unique(biomass$Species)
+group <- c("grass", "forb")
+
+lrr.ITS.m.spp <- expand.grid(Family = fam.ITS, Species = Species, est = NA, se = NA, p = NA)
+
+for(i in fam.ITS) {
+  for(j in Species){
+  tmp <- lm(weight.d ~ norm.counts, data = lrr.fam.ITS[lrr.fam.ITS$Family == i & lrr.fam.ITS$Species == j,])
+  
+  lrr.ITS.m.spp[lrr.ITS.m.spp$Family == i & lrr.ITS.m.spp$Species == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+    lrr.ITS.m.spp[lrr.ITS.m.spp$Family == i & lrr.ITS.m.spp$Species == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      lrr.ITS.m.spp[lrr.ITS.m.spp$Family == i & lrr.ITS.m.spp$Species == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+lrr.ITS.m.spp$lines <- ifelse(lrr.ITS.m.spp$p < 0.05, "0", "1")
+
+lrr.fam.ITS.spp <- merge(lrr.fam.ITS.spp, lrr.ITS.m.spp, by = c("Family", "Species"))
+
+#### .---Fig: LRR v NA (16S & ITS - Spp) ####
+fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Clostridiaceae_1")
+
+plotlist = list()
+
+for(i in fam2) {
+  p <- ggplot(lrr.fam.16s.spp[lrr.fam.16s.spp$Family == i,], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) + 
+  geom_smooth(method = "lm", formula = y ~ x, se = F, size = 0.8, aes(linetype = lines)) +
+  geom_point(size = .6) +
+#  geom_smooth(method = "lm", aes(group = 1), formula = y ~ x, se = F, col = "grey24", linetype = 2) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 8),
+    axis.text = element_text(size = 7)
+  ) +
+  facet_wrap(~FunGroup2) +
+  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio")
+
+  plotlist[[i]] <- p
+}
+
+p.f <- ggplot(lrr.fam.16s.spp[lrr.fam.16s.spp$Family == "Fibrobacteraceae",], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) + 
+  geom_smooth(method = "lm", formula = y ~ x, se = F, size = 0.8, linetype = "dashed") +
+  geom_point(size = .6) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 8),
+    axis.text = element_text(size = 7)
+  ) +
+  facet_wrap(~FunGroup2) +
+  labs(title = "Fibrobacteraceae", x = "Relative Abundance", y = "Log Response Ratio")
+
+plotlist[[4]] <- p.f
+
+p.c <- ggplot(lrr.fam.ITS.spp[lrr.fam.ITS.spp$Family == "Ceratobasidiaceae",], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) + 
+  geom_smooth(method = "lm", formula = y ~ x, se = F, size = 0.8, aes(linetype = lines)) +
+  geom_point(size = .6) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 8),
+    axis.text = element_text(size = 7)
+  ) +
+  facet_wrap(~FunGroup2) +
+  labs(title = "Ceratobasidiaceae", x = "Relative Abundance", y = "Log Response Ratio")
+
+plotlist[[5]] <- p.c
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(lrr.fam.16s[lrr.fam.16s$Family == i,], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  )
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 1, 
+                               left = textGrob("Log Response Ratio", 
+                                               rot = 90, 
+                                               vjust = 1)), 
+                  legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width),
+                   nrow=1)
+
+
+ggsave("Figures/Final/Fig-S15.jpg", p2, width = 6, height = 9, units = "in", dpi = 600)
+
+#### .---Fig: LRR v NA (ITS - Spp) ####
+fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
+
+plotlist = list()
+
+for(i in fam.ITS) {
+  p <- ggplot(lrr.fam.ITS.spp[lrr.fam.ITS.spp$Family == i,], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) + 
+  geom_smooth(method = "lm", formula = y ~ x, se = F, size = 0.8, aes(linetype = lines)) +
+  geom_point(size = .6) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 8),
+    axis.text = element_text(size = 7)
+  ) +
+  facet_wrap(~FunGroup2) +
+  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio")
+
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(lrr.fam.ITS[lrr.fam.ITS$Family == i,], aes(x = norm.counts, y = weight.d, col = Species, group = Species)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  )
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 1, 
+                               left = textGrob("Log Response Ratio", 
+                                               rot = 90, 
+                                               vjust = 1)), 
+                  legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width),
+                   nrow=1)
+
+
+ggsave("Figures/Final/Fig-S13.jpg", p2, width = 6, height = 7, units = "in", dpi = 600)
+
+
+
+
+
+#### Graph: Biomass v NA (16s family) ####
+bio.fam.16s <- merge(norm.count.16s, mapping, by.x = "Sample", by.y = "SampleID_Fix", all.y = F)
+bio.fam.16s <- filter(bio.fam.16s, FunGroup != "grass_x_forb")
+fam2 <- c(fam2, "Fibrobacteraceae")
+plotlist = list()
+
+for(i in fam2) {
+  p <- ggplot(bio.fam.16s[bio.fam.16s$Family == i,], aes(x = norm.counts, y = Weight.g, col = PlantSpeciesSampled, group = PlantSpeciesSampled)) + 
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_point(size = .8) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  ) +
+  labs(title = i, x = "Relative Abundance", y = "Biomass (g)") +
+    facet_wrap(~FunGroup)
+  
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.fam.16s[bio.fam.16s$Family == i,], aes(x = norm.counts, y = Weight.g, col = Species, group = Species)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  )
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 2, 
+                               left = textGrob("Biomass (g)", 
+                                               rot = 90, 
+                                               vjust = 1)),  
+                   legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width),
+                   nrow=1)
+
+#### Graph: Biomass v NA (ITS family) ####
+bio.fam.its <- merge(norm.count.its, mapping, by.x = "Sample", by.y = "SampleID_Fix", all.y = F)
+bio.fam.its <- filter(bio.fam.its, FunGroup != "grass_x_forb")
+plotlist = list()
+
+for(i in fam.ITS) {
+  p <- ggplot(bio.fam.its[bio.fam.its$Family == i,], aes(x = norm.counts, y = Weight.g, col = PlantSpeciesSampled, group = PlantSpeciesSampled)) + 
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_point(size = .8) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  ) +
+    facet_wrap(~FunGroup) +
+  labs(title = i, x = "Relative Abundance", y = "Biomass (g)") 
+  
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.fam.its[bio.fam.its$Family == i,], aes(x = norm.counts, y = Weight.g, col = PlantSpeciesSampled, group = PlantSpeciesSampled)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  )
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 2, 
+                               left = textGrob("Biomass (g)", 
+                                               rot = 90, 
+                                               vjust = 1)),  
+                   legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width),
+                   nrow=1)
+
+
+#### Models: Biomass v NA (genus) ####
+bio.16s <- merge(norm.count.16s, mapping[mapping$Competion == "SingleSpecies",], by.x = "Sample", by.y = "SampleID_Fix")
+
+FunGroup <- c("Grass", "Forb")
+
+bio.16s.m <- expand.grid(Family = fam2, FunGroup = FunGroup, est = NA, se = NA, p = NA)
+
+for(i in fam2) {
+  for(j in FunGroup){
+  tmp <- lm(Weight.g ~ norm.counts, data = bio.16s[bio.16s$Family == i & bio.16s$FunGroup == j,])
+  bio.16s.m[bio.16s.m$Family == i & bio.16s.m$FunGroup == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+   bio.16s.m[bio.16s.m$Family == i & bio.16s.m$FunGroup == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      bio.16s.m[bio.16s.m$Family == i & bio.16s.m$FunGroup == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+bio.16s.m$lines <- ifelse(bio.16s.m$p < 0.05, "0", "1") 
+bio.16s.m <- merge(bio.16s, bio.16s.m, by = c("Family", "FunGroup"))
+
+#### .----Fig: Bio v NA (16S - M) ####
+#fam4 <- unique(norm.count.16s$Family)
+# 
+# lrr.fam.16s <- merge(lrr.fam.16s, lrr.16s.m, by = c("Family", "FunGroup2"))
+
+plotlist = list()
+
+for(i in fam2) {
+  p <- ggplot(bio.16s.m[bio.16s.m$Family == i,], aes(x = norm.counts, y = Weight.g, col = PlantSpeciesSampled, group = PlantSpeciesSampled)) + 
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_point(size = .8) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  ) +
+  labs(title = i, x = "Relative Abundance", y = "Biomass (g)") +
+  facet_wrap(~FunGroup)
+  #scale_color_manual(values = c("magenta4", "#1F968BFF"))
+
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.16s.m[bio.16s.m$Family == i,], aes(x = norm.counts, y = Weight.g, col = PlantSpeciesSampled, group = PlantSpeciesSampled)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()) 
+  # +
+  # scale_color_manual(values = c("magenta4", "#1F968BFF"))
+     ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 2, 
+                               left = textGrob("Biomass (g)", 
+                                               rot = 90, 
+                                               vjust = 1)),  
+                    # legend, 
+                    # widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
+                   nrow=1)
+
+ ggsave("Figures/Final/Fig-S14.jpg", p2, width = 6, height = 5, units = "in", dpi = 600)
+
+#### Genera ####
+ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
+ps.16s.nocontrols.rare.RA <- transform_sample_counts(ps.16s.nocontrols.rare, function(x) x / sum(x))
+
+df_ASV <- psmelt(ps.16s.nocontrols.rare.RA)
+df_ASV.m <- filter(df_ASV, Family == "Methylophilaceae")
+df_ASV.b <- filter(df_ASV, Family == "Burkholderiaceae")
+unique(df_ASV$OTU)
+
+grouped_ASV <- ddply(df_ASV.b, .(Sample, Genus, FunGroup, Weight.g), summarize, Abundance = sum(Abundance))
+
+### Fun group v RA
+
+df_ASV_sum <- summarySE(grouped_ASV, measurevar = "Abundance", groupvars = c("Genus", "FunGroup"))
+df_ASV_sum <- df_ASV_sum[df_ASV_sum$Abundance > 0.002,]
+
+ggplot(df_ASV_sum, aes(y = Abundance, x = FunGroup, fill - FunGroup)) +
+  geom_bar(stat = "identity", position = "dodge", col = "black") +
+  geom_errorbar(aes(ymin = Abundance - se, ymax = Abundance + se), width = 0.2, position = position_dodge(1), col = "black") +
+  facet_wrap(~Genus) # SV 206, 608, 672, 829, maybe 1042, 1389
+
+### Biomass v RA: Methylophilaceae
+bio.16s.m2 <- expand.grid(Genus = c("Methylotenera", "MM2"), FunGroup = c("Forb", "Grass"), est = NA, se = NA, p = NA)
+
+
+for(i in c("Methylotenera", "MM2")) {
+  for(j in FunGroup){
+  tmp <- lm(Weight.g ~ Abundance, data = grouped_ASV[grouped_ASV$Genus == i & grouped_ASV$FunGroup == j,])
+  bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+   bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+bio.16s.m2$lines <- ifelse(bio.16s.m2$p < 0.05, "dashed", "solid") 
+bio.16s.m2 <- merge(bio.16s, bio.16s.m2, by = c("Family", "FunGroup"))
+
+
+ggplot(grouped_ASV[grouped_ASV$Genus == "Methylotenera",], aes(y = Weight.g, x = Abundance, group = FunGroup, col = FunGroup)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x)
+
+### Biomass v RA: Burkholderiaceae
+gen.b <- unique(df_ASV_sum$Genus)
+gen.b <- gen.b[!is.na(gen.b)]
+
+bio.16s.m2 <- expand.grid(Genus = gen.b, FunGroup = c("Forb", "Grass"), est = NA, se = NA, p = NA)
+
+
+for(i in gen.b) {
+  for(j in FunGroup){
+  tmp <- lm(Weight.g ~ Abundance, data = grouped_ASV[grouped_ASV$Genus == i & grouped_ASV$FunGroup == j,])
+  bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+   bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      bio.16s.m2[bio.16s.m2$Genus == i & bio.16s.m2$FunGroup == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+bio.16s.m2$lines <- ifelse(bio.16s.m2$p < 0.05, "dashed", "solid") 
+bio.16s.m2 <- merge(bio.16s, bio.16s.m2, by = c("Family", "FunGroup"))
+grouped_ASV <- grouped_ASV[grouped_ASV$Genus %in% gen.b,]
+
+ggplot(grouped_ASV, aes(y = Weight.g, x = Abundance, group = FunGroup, col = FunGroup)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = F) +
+  facet_wrap(~Genus) +
+  ylim(0,0.5)
+
+
+### LRR v RA
+
+df_ASV.lrr <- merge(df_ASV.b[,c(1,2,3,43,44)], lrr.fam.16s[,-c(7,8)], by = c("Sample", "Family"))
+df_ASV.lrr <- filter(df_ASV.lrr, Genus %in% gen.b)
+
+df_ASV.lrr <- ddply(df_ASV.lrr , .(Sample, Genus, FunGroup2, weight.d), summarize, Abundance = sum(Abundance))
+
+lrr.16s.m3 <- expand.grid(Genus = gen.b, FunGroup2 = c("forb", "grass"), est = NA, se = NA, p = NA)
+
+
+for(i in gen.b) {
+  for(j in c("forb", "grass")){
+  tmp <- lm(weight.d ~ Abundance, data = df_ASV.lrr[df_ASV.lrr$Genus == i & df_ASV.lrr$FunGroup2 == j,])
+  lrr.16s.m3[lrr.16s.m3$Genus == i & lrr.16s.m3$FunGroup2 == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+   lrr.16s.m3[lrr.16s.m3$Genus == i & lrr.16s.m3$FunGroup2 == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+      lrr.16s.m3[lrr.16s.m3$Genus == i & lrr.16s.m3$FunGroup2 == j, "p"] <- summary(tmp)[["coefficients"]][2,4]
+  }
+}
+
+ggplot(df_ASV.lrr, aes(y = weight.d, x = Abundance, group = FunGroup2, col = FunGroup2)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  facet_wrap(~Genus)
+
