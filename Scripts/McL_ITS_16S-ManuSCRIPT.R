@@ -65,11 +65,13 @@ ps.ITS.nocontrols <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved.
 ps.16s.nocontrols.rare <- readRDS("Data/16S/Intermediates/ps-nocontrols-rare9434.RDS") # rarefied 16s data
 ps.16s.nocontrols.rare <- readRDS("Data/ps-nocontrols-rare9434.RDS") # rarefied 16s data, Cassie's path
 
+sample_data(ps.16s.nocontrols.rare)$PlantSpeciesSampled <- recode(sample_data(ps.16s.nocontrols.rare)$PlantSpeciesSampled, `Elymus caput-medusae` = "Taeniatherum caput-medusae")
 
 # Load 
 ps.ITS.nocontrols.rare <- readRDS("Data/ITS/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data
 ps.ITS.nocontrols.rare <- readRDS("Data/greenhouse_its_itsx_decontam_controlsremoved_rare7557.rds") # rarefied ITS data, Cassie's path
 
+sample_data(ps.ITS.nocontrols.rare)$PlantSpeciesSampled <- recode(sample_data(ps.ITS.nocontrols.rare)$PlantSpeciesSampled, `Elymus caput-medusae` = "Taeniatherum caput-medusae")
 
 ###
 # Metadata mapping file including biomass and traits (version4)
@@ -143,7 +145,26 @@ ITS.tax <- as.matrix(df.ITS.tax)
 
 tax_table(ps.ITS.nocontrols) <- ITS.tax
 
-#### Ordination (16S) ####
+#### Ordination (16S) - Soil ####
+ps.16s.nocontrols.rare.soil <- subset_samples(ps.16s.nocontrols.rare, SampleType == "Soil")
+
+sample_data(ps.16s.nocontrols.rare.soil)$SampleSubType <- recode(sample_data(ps.16s.nocontrols.rare.soil)$SampleSubType, Rhizosphere_soil = "Rhizosphere", Background_soil_sand_mix = "Background soil")
+  
+ps.rare.ord.tr.soil <- ordinate(ps.16s.nocontrols.rare.soil, "PCoA", "wunifrac")
+
+DistWU <- phyloseq::distance(ps.16s.nocontrols.rare.soil, method = "wunifrac", type = "samples")
+
+# adonis compares centroids and is sensitive to differences in spread
+set.seed(50)
+adonis(DistWU ~ SampleSubType, as(sample_data(ps.16s.nocontrols.rare.soil), "data.frame"), permutations = 9999)
+
+C <- betadisper(DistWU, as(sample_data(ps.16s.nocontrols.rare.soil), "data.frame")$SampleSubType)
+set.seed(50)
+permutest(C, permutations = 9999) # spread varies between treatments
+plot(C, label = F) # centroids
+
+
+#### Ordination (16S) - FG ####
 ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
 
 sample_data(ps.16s.nocontrols.rare)$FunGroup <- recode(sample_data(ps.16s.nocontrols.rare)$FunGroup, grass_x_forb = "Competition")
@@ -155,16 +176,106 @@ ps.rare.ord.tr <- ordinate(ps.16s.nocontrols.rare, "PCoA", "wunifrac")
 DistWU <- phyloseq::distance(ps.16s.nocontrols.rare, method = "wunifrac", type = "samples")
 
 # adonis compares centroids and is sensitive to differences in spread
-
+set.seed(50)
 adonis(DistWU ~ FunGroup, as(sample_data(ps.16s.nocontrols.rare), "data.frame"), permutations = 9999)
 
 C <- betadisper(DistWU, as(sample_data(ps.16s.nocontrols.rare), "data.frame")$FunGroup)
+set.seed(50)
 permutest(C, permutations = 9999) # spread doesnt vary between treatments
+#plot(C, label = F) # centroids
 
+set.seed(50)
 pair.16s.com <- adonis.pair(DistWU, as(sample_data(ps.16s.nocontrols.rare), "data.frame")$FunGroup, nper = 9999, corr.method = "BH")
 kable(pair.16s.com)
 
-#### Ordination (ITS) ####
+
+#### Ordination (16S) - Spp ####
+
+###
+# Forb Species
+###
+
+ps.16s.nocontrols.rare.spp.f <- subset_samples(ps.16s.nocontrols.rare.spp, grass == "none")
+
+ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.f, "PCoA", "wunifrac")
+
+ord.plot.spp.f <- plot_ordination(ps.16s.nocontrols.rare.spp.f, ps.16s.nc.rare.spp.ord, color = "PlantSpeciesSampled", shape = "PlantSpeciesSampled") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  )
+
+ggsave("Figures/Final/Fig-S10a.jpg", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
+
+
+DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.f, method = "wunifrac", type = "samples")
+
+set.seed(50)
+adonis(DistWU.Spp ~ PlantSpeciesSampled, as(sample_data(ps.16s.nocontrols.rare.spp.f), "data.frame"), permutations = 9999)
+
+C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.f), "data.frame")$PlantSpeciesSampled)
+set.seed(50)
+permutest(C, permutations = 9999) # spread doesnt vary between forbs species
+
+### 
+# Grass species
+###
+ps.16s.nocontrols.rare.spp.g <- subset_samples(ps.16s.nocontrols.rare.spp, forb == "none")
+
+ps.16s.nc.rare.spp.ord <- ordinate(ps.16s.nocontrols.rare.spp.g, "PCoA", "wunifrac")
+
+ord.plot.spp.g <- plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.spp.ord, color = "PlantSpeciesSampled", shape = "PlantSpeciesSampled") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  )
+
+ggsave("Figures/Final/Fig-S10b.jpg", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
+
+
+DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.g, method = "wunifrac", type = "samples")
+
+set.seed(50)
+adonis(DistWU.Spp ~ PlantSpeciesSampled, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame"), permutations = 9999) # grass microbiomes are sig different, particularly medusahead
+
+C <- betadisper(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame")$PlantSpeciesSampled)
+set.seed(50)
+permutest(C, permutations = 9999)
+
+set.seed(50)
+pair.spp.g <- adonis.pair(DistWU.Spp, as(sample_data(ps.16s.nocontrols.rare.spp.g), "data.frame")$grass, nper = 9999, corr.method = "BH")
+kable(pair.spp.g) # TACA sig diff
+
+#### Ordination (ITS) - Soil ####
+ps.ITS.nocontrols.rare.soil <- subset_samples(ps.ITS.nocontrols.rare, SampleType == "Soil")
+
+sample_data(ps.ITS.nocontrols.rare.soil)$SampleSubType <- recode(sample_data(ps.ITS.nocontrols.rare.soil)$SampleSubType, Rhizosphere_soil = "Rhizosphere", Background_soil_sand_mix = "Background soil")
+
+GL_pcoa.soil <- ordinate(
+  physeq = ps.ITS.nocontrols.rare.soil, 
+  method = "PCoA", 
+  distance = "bray")
+
+DistBC <- phyloseq::distance(ps.ITS.nocontrols.rare.soil, method = "bray", type="samples")
+set.seed(50)
+adonis(DistBC ~ SampleSubType, as(sample_data(ps.ITS.nocontrols.rare.soil), "data.frame"), permutations = 9999) 
+
+C <- betadisper(DistBC, as(sample_data(ps.ITS.nocontrols.rare.soil), "data.frame")$SampleSubType)
+set.seed(50)
+permutest(C, permutations = 9999) 
+plot(C, label = F)
+
+#### Ordination (ITS) - FG ####
 ps.ITS.nocontrols.rare <- subset_samples(ps.ITS.nocontrols.rare, !(is.na(Competion)))
 
 sample_data(ps.ITS.nocontrols.rare)$FunGroup <- recode(sample_data(ps.ITS.nocontrols.rare)$FunGroup, grass_x_forb = "Competition")
@@ -177,16 +288,94 @@ GL_pcoa <- ordinate(
   distance = "bray")
 
 DistBC <- phyloseq::distance(ps.ITS.nocontrols.rare, method = "bray", type="samples")
-
+set.seed(50)
 adonis(DistBC ~ FunGroup, as(sample_data(ps.ITS.nocontrols.rare), "data.frame"), permutations = 9999) # marginal fungroup diffs
 
 # because all these are marginal, we should not be looking at pairwise comparisons
+# 
+# sample_data(ps.ITS.nocontrols.rare)$FunGroup <- as.factor(sample_data(ps.ITS.nocontrols.rare)$FunGroup)
+# set.seed(50)
+# pair.its.com <- adonis.pair(DistBC, as(sample_data(ps.ITS.nocontrols.rare), "data.frame")$FunGroup, nper = 9999, corr.method = "BH")
+# kable(pair.its.com)
 
-sample_data(ps.ITS.nocontrols.rare)$FunGroup <- as.factor(sample_data(ps.ITS.nocontrols.rare)$FunGroup)
-pair.its.com <- adonis.pair(DistBC, as(sample_data(ps.ITS.nocontrols.rare), "data.frame")$FunGroup, nper = 9999, corr.method = "BH")
-kable(pair.its.com)
+#### Ordination (ITS) - Spp ####
 
-#### .---Fig: Ord (16S) ####
+###
+# Forb Species
+###
+
+ps.ITS.nocontrols.rare.spp.f <- subset_samples(ps.ITS.nocontrols.rare.spp, grass == "none")
+
+ps.ITS.nc.rare.spp.ord <- ordinate(ps.ITS.nocontrols.rare.spp.f, "PCoA", distance = "bray")
+
+ord.plot.spp.f <- plot_ordination(ps.ITS.nocontrols.rare.spp.f, ps.ITS.nc.rare.spp.ord, color = "PlantSpeciesSampled", shape = "PlantSpeciesSampled") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  )
+
+ggsave("Figures/Final/Fig-S11a.jpg", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
+
+DistBC.spp <- phyloseq::distance(ps.ITS.nocontrols.rare.spp.f, method = "bray", type = "samples")
+
+set.seed(50)
+adonis(DistBC.spp ~ PlantSpeciesSampled, as(sample_data(ps.ITS.nocontrols.rare.spp.f), "data.frame"), permutations = 9999)
+
+C <- betadisper(DistBC.spp, as(sample_data(ps.ITS.nocontrols.rare.spp.f), "data.frame")$PlantSpeciesSampled)
+set.seed(50)
+permutest(C, permutations = 9999) # spread doesnt vary between forbs species
+
+### 
+# Grass species
+###
+ps.ITS.nocontrols.rare.spp.g <- subset_samples(ps.ITS.nocontrols.rare.spp, forb == "none")
+
+ps.ITS.nc.rare.spp.ord <- ordinate(ps.ITS.nocontrols.rare.spp.g, "PCoA", "bray")
+
+ord.plot.spp.g <- plot_ordination(ps.ITS.nocontrols.rare.spp.g, ps.ITS.nc.rare.spp.ord, color = "PlantSpeciesSampled", shape = "PlantSpeciesSampled") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  )
+
+ggsave("Figures/Final/Fig-S11b.jpg", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
+
+DistBC.spp <- phyloseq::distance(ps.ITS.nocontrols.rare.spp.g, method = "bray", type = "samples")
+
+set.seed(50)
+adonis(DistBC.spp ~ PlantSpeciesSampled, as(sample_data(ps.ITS.nocontrols.rare.spp.g), "data.frame"), permutations = 9999) 
+
+C <- betadisper(DistWU.Spp, as(sample_data(ps.ITS.nocontrols.rare.spp.g), "data.frame")$PlantSpeciesSampled)
+set.seed(50)
+permutest(C, permutations = 9999)
+
+#### .---Fig: Ord (16S) - Soil ####
+
+ord.plot.16s.s <- plot_ordination(ps.16s.nocontrols.rare.soil, ps.rare.ord.tr.soil, color = "SampleSubType", shape = "SampleSubType") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = SampleSubType)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  ) 
+
+ggsave("Figures/Final/Fig-ord-16s-soil.jpg", ord.plot.16s.s, width = 6, height = 4, units = "in", dpi = 600)
+
+
+#### .---Fig: Ord (16S) - FG ####
 ord.plot <- plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "FunGroup", shape = "FunGroup") +
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
@@ -202,7 +391,23 @@ ord.plot <- plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "Fun
 ggsave("Figures/Final/Fig-1.jpg", ord.plot, width = 5, height = 4, units = "in", dpi = 600)
 
 
-#### .---Fig: Ord (ITS) ####
+#### .---Fig: Ord (ITS) - Soil ####
+
+ord.plot.ITS.s <- plot_ordination(ps.ITS.nocontrols.rare.soil, GL_pcoa.soil, color = "SampleSubType", shape = "SampleSubType") +
+  theme_bw(base_size = 15) +
+  geom_point(size = 2) +
+  stat_ellipse(aes(group = SampleSubType)) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    legend.margin = margin(c(.1,.1,.1,.1))
+  ) 
+
+ggsave("Figures/Final/Fig-ord-soil.jpg", ord.plot.ITS.s, width = 6, height = 4, units = "in", dpi = 600)
+
+
+#### .---Fig: Ord (ITS) - FG ####
 ord.plot.ITS <- plot_ordination(ps.ITS.nocontrols.rare, GL_pcoa, color = "FunGroup", shape = "FunGroup") +
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
@@ -222,6 +427,7 @@ ggsave("Figures/Final/Fig-S1.jpg", ord.plot.ITS, width = 6, height = 4, units = 
 GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = "Shannon")
 GL_Alpha <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
 
+set.seed(50)
 kruskal_test(Shannon ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha)
 
 dunnTest(Shannon ~ FunGroup, data = GL_Alpha, method = "bh") 
@@ -231,6 +437,7 @@ dunnTest(Shannon ~ FunGroup, data = GL_Alpha, method = "bh")
 GL_Alpha_ITS <- estimate_richness(ps.ITS.nocontrols.rare, measures = "Shannon")
 GL_Alpha_ITS <- cbind(GL_Alpha_ITS, sample_data(ps.ITS.nocontrols.rare))
 
+set.seed(50)
 kruskal_test(Shannon ~ FunGroup, distribution = approximate(nresample = 9999), data = GL_Alpha_ITS)
 
 #### .---Fig: Div (16S) ####
@@ -324,13 +531,11 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels = names(x))
-  fg.cols <- ifelse(res.alpha.tax$Family %in% FG.G, "red", ifelse(res.alpha.tax$Family %in% FG.F, "blue", "black"))
-  
    p <- ggplot(res.alpha.tax, aes(x = Family, y = log2FoldChange)) + 
     geom_point(size = 3) +
     theme_bw() +
     theme(
-      axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5, size = 12, colour = fg.cols),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5, size = 12),
       plot.title = element_text(hjust = 0.5, size = 12),
       legend.position = "none",
       axis.title.x = element_blank(),
@@ -409,15 +614,13 @@ for(i in contrasts) {
   x = tapply(res.alpha.tax$log2FoldChange, res.alpha.tax$Family, function(x) max(x))
   x = sort(x, TRUE)
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
-  #fg.cols <- ifelse(res.alpha.tax$Family %in% FG.G, "red", ifelse(res.alpha.tax$Family %in% FG.F, "blue", "black")) 
-  #fg.cols <- c("blue", "black", "blue", "black", "black", "blue", "black", "black", "black", "black","black", "black","black", "blue")
-  #fg.cols <- c("blue", "blue", "red", "black", "black", "blue", "red", "black", "blue")
+
   
    p <- ggplot(res.alpha.tax, aes(x = Family, y = log2FoldChange)) + 
     geom_point(size = 3) +
     theme_bw() +
     theme(
-      axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5, size = 12, colour = fg.cols),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust = 0.5, size = 12),
       legend.text = element_text(size = 8),
       plot.title = element_text(hjust = 0.5, size = 12),
       legend.key.size = unit(.35, "cm"),
@@ -436,7 +639,7 @@ for(i in contrasts) {
 
 d.plot <- plot.list$G.F + plot.list$FG.F + plot.FG.G
 
-ggsave("Figures/Final/Fig-S3a.jpg", d.plot, width = 11, height = 4, dpi = 600)
+#ggsave("Figures/Final/Fig-S3a.jpg", d.plot, width = 11, height = 4, dpi = 600)
 
 ###
 # Extract normalized data
@@ -536,7 +739,7 @@ plot.FG.G <- plot.list$FG.G
 ###
 # Extract normalized data
 ###
-rld <- rlog(dds.16s.treat, blind = F) 
+rld <- rlog(dds.its.treat, blind = F) 
 norm.rld <- assay(rld)
 norm.countg <- data.frame(cbind(ASV = rownames(norm.rld), norm.rld))
 
@@ -632,9 +835,6 @@ for(i in contrasts) {
   }
    }
 
-# test <- as.data.frame(t(assays(dds.its.treat)[["counts"]]))
-# test2 <- assays(dds.its.treat)[["replaceCounts"]])
-
 #plot results
 
 des.p.its <- plot.list$G.F + plot.list$FG.F + plot.FG.G
@@ -644,7 +844,7 @@ ggsave("Figures/Final/Fig-S3b.jpg", des.p.its, width = 9, height = 4, dpi = 600)
 ###
 # Extract Normalized abundances
 ###
-rld <- rlog(dds.16s.treat, blind = F)
+rld <- rlog(dds.its.treat, blind = F)
 norm.rld <- assay(rld)
 norm.count <- data.frame(cbind(ASV = rownames(norm.rld), norm.rld))
 
@@ -677,12 +877,12 @@ fig.norm.sum$cld <- c("a", "b", "a",
 plotlist = list()
 
 for(i in fam2) {
-  p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup, col = FunGroup)) +
+  p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup)) +
     # geom_bar(stat = "identity", position = "dodge", col = "black") +
     # geom_errorbar(aes(ymin = norm.counts - se, ymax = norm.counts + se), width = 0.2, position = position_dodge(1), col = "black") +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Normalized Abundance") +
+    labs(title = i, y = "Relative Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -703,7 +903,7 @@ for(i in fam2) {
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
 
 ggsave("Figures/Final/Fig-3b.jpg", p, width = 8, height = 5, units = "in", dpi = 600)
 
@@ -735,12 +935,12 @@ fig.norm.sum$cld <- c("a", "ab", "b",
 plotlist = list()
 
 for(i in unique(fig.norm$Family)) {
-  p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup, col = FunGroup)) +
+  p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup)) +
     # geom_bar(stat = "identity", position = "dodge", col = "black") + 
     # geom_errorbar(aes(ymin = norm.counts - se, ymax = norm.counts + se), width = 0.2, position = position_dodge(1), col = "black") +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Normalized Abundance") +
+    labs(title = i, y = "Relative Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -761,7 +961,7 @@ for(i in unique(fig.norm$Family)) {
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
 
 ggsave("Figures/Final/Fig-S4.jpg", p, width = 7, height = 9, units = "in", dpi = 600)
 
@@ -784,7 +984,7 @@ for(i in unique(fig.norm$Family)) {
   p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup, group = FunGroup)) +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Normalized Abundance") +
+    labs(title = i, y = "Relative Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -798,20 +998,22 @@ for(i in unique(fig.norm$Family)) {
         size = 8,
         vjust = -0.7),
     col = "black") +
-    ylim(NA, max(fig.norm[fig.norm$Family == i,]$norm.counts) + 0.1*max(fig.norm[fig.norm$Family == i,]$norm.counts))
+    scale_y_continuous(
+  labels = scales::number_format(accuracy = 1,
+                                 decimal.mark = ','), limits = c(NA, max(fig.norm[fig.norm$Family == i,]$norm.counts) + 0.1*max(fig.norm[fig.norm$Family == i,]$norm.counts)))
   
   plotlist[[i]] <- p
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
 
 ggsave("Figures/Final/Fig-S5.jpg", p, width = 8, height = 2.5, units = "in", dpi = 600)
 
 
 #### SourceTracker (16S) ####
 asv.fam <- data.frame(ASV = row.names(df.16s.tax), Family = df.16s.tax$Family)
-asv.fam <- filter(asv.fam, asv.fam$Family %in% fam2)
+asv.fam <- filter(asv.fam, asv.fam$Family %in% c("Methylophilaceae", "Clostridiaceae_1", "Fibrobacteraceae", "Burkholderiaceae"))
 
 ST_bg_16S <- read.delim("Data/16S/SourceTracker/sink_predictions_Background_soil_contributions.txt")
 ST_bg_16S$Source <- "Background"
@@ -832,7 +1034,7 @@ ST_16S2 <- merge(ST_16S, asv.fam, by = "ASV", all.x = F)
 test <- ddply(ST_16S2, .(Family), summarize, sum.prob = sum(prob))
 ST_16S2 <- ddply(ST_16S2, .(Family, Source), summarize, source.prob = sum(prob))
 ST_16S2 <- merge(ST_16S2, test, by = "Family")
-ST_16S2$rel.prob <- ST_16S2$source.prob/ST_16S$sum.prob
+ST_16S2$rel.prob <- ST_16S2$source.prob/ST_16S2$sum.prob
 
 ####.---Fig: SourceTracker (16S - M) ####
 p.st <- ggplot(ST_16S2, aes(y = rel.prob, x = Family, col = Source, fill = Source)) +
@@ -854,7 +1056,8 @@ ggsave("Figures/Final/Fig-4.jpg", p.st, width = 5, height = 2, dpi = 600, units 
 
 #### .---Fig: SourceTracker (16S - S) ####
 asv.fam <- data.frame(ASV = row.names(df.16s.tax), Family = df.16s.tax$Family)
-asv.fam <- filter(asv.fam, asv.fam$Family %in% fam3)
+fam4 <- c(as.character(fam3), "Rhodocyclaceae", "Veillonellaceae")
+asv.fam <- filter(asv.fam, asv.fam$Family %in% fam4)
 
 ST_16S3 <- merge(ST_16S, asv.fam, by = "ASV", all.x = F)
 test <- ddply(ST_16S3, .(Family), summarize, sum.prob = sum(prob))
@@ -877,7 +1080,7 @@ p.st <- ggplot(ST_16S3, aes(y = rel.prob, x = Family, col = Source, fill = Sourc
   labs(y = "Proportion of ASVs") +
   coord_flip()
   
-ggsave("Figures/Final/Fig-S6.jpg", p.st, width = 6, height = 3, dpi = 600, units = "in")
+ggsave("Figures/Final/Fig-S6.jpg", p.st, width = 6, height = 4, dpi = 600, units = "in")
 
 #### SourceTracker (ITS) ####
 fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
@@ -970,6 +1173,32 @@ bio.plot <- ggplot(biomass.lrr.sum, aes(y = weight.d, x = FunGroup2, fill = FunG
 
 ggsave("Figures/Final/Fig-5.jpg", bio.plot, width = 5, height = 4, units = "in", dpi = 600)
 
+#### .---Fig: LRR Spp ####
+biomass.sum <- summarySE(biomass, measurevar =  "weight.d", groupvars = c("Treatment", "FunGroup2"), na.rm = T)
+
+biomass.sum <- biomass.sum %>% 
+         group_by(Treatment) %>%
+         mutate(slope = (weight.d[FunGroup2=="grass"] - weight.d[FunGroup2=="forb"])/(2-1))
+
+
+bio.spp.plot <- ggplot(biomass.sum, aes(x = FunGroup2, y = weight.d, group = 1)) + 
+  #geom_line(aes(col = slope)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = weight.d - se, ymax = weight.d + se), width = 0.02) +
+  theme_bw(base_size = 15) +
+  facet_wrap(~Treatment, ncol = 6) +
+  #scale_color_gradient2(low = "red",  high = "blue") +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10),
+    axis.title.x = element_blank(),
+    legend.position = "none"
+  ) +
+  labs(y = "Log Response Ratio")
+
+ggsave("Figures/Final/Fig-S12.jpg", bio.spp.plot, width = 6, height = 4, units = "in", dpi = 600)
+
 #### LRR v NA (16S) ####
 lrr.fam.df <- psmelt(ps.16s.nocontrols.fam)
 
@@ -988,6 +1217,8 @@ lrr.fam.16s <- lrr.fam.df %>%
 lrr.fam.16s$weight.d <- ifelse(lrr.fam.16s$FunGroup2 == "forb", log(lrr.fam.16s$forb.wt/lrr.fam.16s$avg.wt), log(lrr.fam.16s$grass.wt/lrr.fam.16s$avg.wt))
 
 lrr.fam.16s <- merge(norm.count.16s, lrr.fam.16s, by = c("Sample", "Family"), all.y = F)
+
+lrr.fam.16s.spp <- lrr.fam.16s
 
 #### LRR v NA (ITS) ####
 ITS.fam <- psmelt(ps.its.nocontrols.fam)
@@ -1023,14 +1254,15 @@ levels(ITS.fam.df3$Family) <- c(levels(ITS.fam.df3$Family), "Unclassified Sebaci
 ITS.fam.df3[ITS.fam.df3$Order == "Sebacinales" & ITS.fam.df3$Family == "Unclassified",]$Family <- "Unclassified Sebacinales"
 
 lrr.fam.ITS <- merge(norm.count.its, ITS.fam.df3, by = c("Sample", "Family"), all.y = F)
+lrr.fam.ITS.spp <- lrr.fam.ITS
 
-#### Models: LRR v NA (16S) ####
+#### Models: LRR v NA (16S) - M ####
+fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Veillonellaceae", "Clostridiaceae_1", "Rhodocyclaceae")
 
+Species <- unique(biomass$Species)
 group <- c("grass", "forb")
-fam.16s <- c(fam2, fam3)
-fam.16s <- as.character(fam.16s)
+fam.16s <- c(fam2, as.character(fam3))
 lrr.16s.m <- expand.grid(Family = fam.16s, FunGroup2 = group, est = NA, se = NA, p = NA)
-
 
 for(i in fam.16s) {
   for(j in group){
@@ -1042,6 +1274,7 @@ for(i in fam.16s) {
 }
 
 lrr.16s.m$lines <- ifelse(lrr.16s.m$p < 0.05, "dashed", "solid") # this should give me the exact opposite but for some reason it's switched in the graph... 
+
 
 #### Models: LRR v NA (ITS) ####
 
@@ -1058,7 +1291,13 @@ for(i in fam.ITS) {
   }
 }
 
+lrr.ITS.m$lines <- ifelse(lrr.ITS.m$p < 0.05, "dashed", "solid")  # switched
+lrr.fam.ITS <- merge(lrr.fam.ITS, lrr.ITS.m, by = c("Family", "FunGroup2"))
+
+
+
 #### .---Fig: LRR v NA (16S - M) ####
+fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Clostridiaceae_1")
 
 lrr.fam.16s <- merge(lrr.fam.16s, lrr.16s.m, by = c("Family", "FunGroup2"))
 
@@ -1077,7 +1316,7 @@ for(i in fam2) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF"))
 
   plotlist[[i]] <- p
@@ -1093,7 +1332,7 @@ legend <- gtable_filter(ggplotGrob(
     ), "guide-box") 
 
 p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
-                               ncol = 3, 
+                               ncol = 2, 
                                left = textGrob("Log Response Ratio", 
                                                rot = 90, 
                                                vjust = 1)),  
@@ -1101,12 +1340,13 @@ p2 <- grid.arrange(arrangeGrob(grobs = plotlist,
                    widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
                    nrow=1)
 
-ggsave("Figures/Final/Fig-6.jpg", p2, width = 7.5, height = 5, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-6.jpg", p2, width = 6, height = 5, units = "in", dpi = 600)
 
 #### .---Fig: LRR v NA (16S - S) ####
 plotlist = list()
+fam4 <- c(as.character(fam3), "Rhodocyclaceae", "Veillonellaceae")
 
-for(i in fam3) {
+for(i in fam4) {
   p <- ggplot(lrr.fam.16s[lrr.fam.16s$Family == i,], aes(x = norm.counts, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
   geom_smooth(method = "lm", formula = y ~ x, linetype = "dashed") +
   geom_point(size = .8) +
@@ -1119,7 +1359,7 @@ for(i in fam3) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF"))
   
   plotlist[[i]] <- p
@@ -1147,11 +1387,13 @@ ggsave("Figures/Final/Fig-S8.jpg", p2, width = 7, height = 9, units = "in", dpi 
 
 
 #### .---Fig: LRR v NA (ITS) ####
+fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
+
 plotlist = list()
 
 for(i in fam.ITS) {
-  p <- ggplot(lrr.fam.ITS[lrr.fam.ITS$Family == i,], aes(x = norm.counts, y = weight.d, col = FunGroup2, group = FunGroup2)) + 
-  geom_smooth(method = "lm", formula = y ~ x, linetype = "dashed") +
+  p <- ggplot(lrr.fam.ITS[lrr.fam.ITS$Family == i,], aes(x = norm.counts, y = weight.d, col = FunGroup2, group = FunGroup2, linetype = FunGroup2)) + 
+  geom_smooth(method = "lm", formula = y ~ x, aes(linetype = lines)) +
   geom_point(size = .8) +
   theme_bw() +
   theme(
@@ -1162,7 +1404,7 @@ for(i in fam.ITS) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF")) +
   scale_x_continuous(
   labels = scales::number_format(accuracy = 1,
