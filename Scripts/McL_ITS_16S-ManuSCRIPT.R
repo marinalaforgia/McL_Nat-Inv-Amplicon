@@ -38,6 +38,8 @@ library(patchwork)
 library(VennDiagram)
 library(gridExtra)
 library(gtable)
+library(sjstats)
+library(MuMIn)
 
 #### Load Data ####
 
@@ -203,6 +205,7 @@ ord.plot.spp.f <- plot_ordination(ps.16s.nocontrols.rare.spp.f, ps.16s.nc.rare.s
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  labs(x = "PCoA1 (25.2%)", y = "PCoA2 (19.0%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -210,7 +213,7 @@ ord.plot.spp.f <- plot_ordination(ps.16s.nocontrols.rare.spp.f, ps.16s.nc.rare.s
     legend.margin = margin(c(.1,.1,.1,.1))
   )
 
-ggsave("Figures/Final/Fig-S10a.jpg", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S10a.pdf", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
 
 
 DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.f, method = "wunifrac", type = "samples")
@@ -233,6 +236,7 @@ ord.plot.spp.g <- plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.s
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  labs(x = "PCoA1 (35.2%)", y = "PCoA2 (24.1%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -240,7 +244,7 @@ ord.plot.spp.g <- plot_ordination(ps.16s.nocontrols.rare.spp.g, ps.16s.nc.rare.s
     legend.margin = margin(c(.1,.1,.1,.1))
   )
 
-ggsave("Figures/Final/Fig-S10b.jpg", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S10b.pdf", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
 
 
 DistWU.Spp <- phyloseq::distance(ps.16s.nocontrols.rare.spp.g, method = "wunifrac", type = "samples")
@@ -312,6 +316,7 @@ ord.plot.spp.f <- plot_ordination(ps.ITS.nocontrols.rare.spp.f, ps.ITS.nc.rare.s
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  labs(x = "PCoA1 (10.7%)", y = "PCoA2 (8.8%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -319,7 +324,7 @@ ord.plot.spp.f <- plot_ordination(ps.ITS.nocontrols.rare.spp.f, ps.ITS.nc.rare.s
     legend.margin = margin(c(.1,.1,.1,.1))
   )
 
-ggsave("Figures/Final/Fig-S11a.jpg", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S11a.pdf", ord.plot.spp.f, width = 7, height = 4, units = "in", dpi = 600)
 
 DistBC.spp <- phyloseq::distance(ps.ITS.nocontrols.rare.spp.f, method = "bray", type = "samples")
 
@@ -341,6 +346,7 @@ ord.plot.spp.g <- plot_ordination(ps.ITS.nocontrols.rare.spp.g, ps.ITS.nc.rare.s
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = PlantSpeciesSampled)) +
+  labs(x = "PCoA1 (18.3%)", y = "PCoA2 (12.7%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -348,7 +354,7 @@ ord.plot.spp.g <- plot_ordination(ps.ITS.nocontrols.rare.spp.g, ps.ITS.nc.rare.s
     legend.margin = margin(c(.1,.1,.1,.1))
   )
 
-ggsave("Figures/Final/Fig-S11b.jpg", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S11b.pdf", ord.plot.spp.g, width = 7, height = 4, units = "in", dpi = 600)
 
 DistBC.spp <- phyloseq::distance(ps.ITS.nocontrols.rare.spp.g, method = "bray", type = "samples")
 
@@ -365,6 +371,7 @@ ord.plot.16s.s <- plot_ordination(ps.16s.nocontrols.rare.soil, ps.rare.ord.tr.so
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = SampleSubType)) +
+  labs(x = "PCoA1 (26.8%)", y = "PCoA2 (17.6%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -372,7 +379,7 @@ ord.plot.16s.s <- plot_ordination(ps.16s.nocontrols.rare.soil, ps.rare.ord.tr.so
     legend.margin = margin(c(.1,.1,.1,.1))
   ) 
 
-ggsave("Figures/Final/Fig-ord-16s-soil.jpg", ord.plot.16s.s, width = 6, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-ord-16s-soil.pdf", ord.plot.16s.s, width = 6, height = 4, units = "in", dpi = 600)
 
 
 #### .---Fig: Ord (16S) - FG ####
@@ -380,6 +387,7 @@ ord.plot <- plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "Fun
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = FunGroup)) +
+  labs(x = "PCoA1 (25.6%)", y = "PCoA2 (18.4%)") +
   theme(
     legend.title = element_blank(),
     legend.position = c(.82, .82),
@@ -388,7 +396,7 @@ ord.plot <- plot_ordination(ps.16s.nocontrols.rare, ps.rare.ord.tr, color = "Fun
   ) +
   scale_color_manual(values = c("magenta4", "#1F968BFF", "goldenrod3"))
 
-ggsave("Figures/Final/Fig-1.jpg", ord.plot, width = 5, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-1.pdf", ord.plot, width = 5, height = 4, units = "in", dpi = 600)
 
 
 #### .---Fig: Ord (ITS) - Soil ####
@@ -397,6 +405,7 @@ ord.plot.ITS.s <- plot_ordination(ps.ITS.nocontrols.rare.soil, GL_pcoa.soil, col
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = SampleSubType)) +
+  labs(x = "PCoA1 (10.6%)", y = "PCoA2 (5.5%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -404,7 +413,7 @@ ord.plot.ITS.s <- plot_ordination(ps.ITS.nocontrols.rare.soil, GL_pcoa.soil, col
     legend.margin = margin(c(.1,.1,.1,.1))
   ) 
 
-ggsave("Figures/Final/Fig-ord-soil.jpg", ord.plot.ITS.s, width = 6, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-ord-soil.pdf", ord.plot.ITS.s, width = 6, height = 4, units = "in", dpi = 600)
 
 
 #### .---Fig: Ord (ITS) - FG ####
@@ -412,6 +421,7 @@ ord.plot.ITS <- plot_ordination(ps.ITS.nocontrols.rare, GL_pcoa, color = "FunGro
   theme_bw(base_size = 15) +
   geom_point(size = 2) +
   stat_ellipse(aes(group = FunGroup)) +
+  labs(x = "PCoA1 (11.2%)", y = "PCoA2 (5.4%)") +
   theme(
     legend.title = element_blank(),
     legend.position = "right",
@@ -420,11 +430,12 @@ ord.plot.ITS <- plot_ordination(ps.ITS.nocontrols.rare, GL_pcoa, color = "FunGro
   ) +
   scale_color_manual(values = c("magenta4", "#1F968BFF", "goldenrod3"))
 
-ggsave("Figures/Final/Fig-S1.jpg", ord.plot.ITS, width = 6, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S1.pdf", ord.plot.ITS, width = 6, height = 4, units = "in", dpi = 600)
 
 #### Shannon Diveristy (16S) ####
 
 GL_Alpha <- estimate_richness(ps.16s.nocontrols.rare, measures = "Shannon")
+
 GL_Alpha <- cbind(GL_Alpha, sample_data(ps.16s.nocontrols.rare))
 
 set.seed(50)
@@ -462,7 +473,7 @@ p.rich.16s <- plot_richness(ps.16s.nocontrols.rare, measures = "Shannon", x = "F
   labs(y = "Shannon Diversity") +
   ylim(NA, 6.8)
   
-ggsave("Figures/Final/Fig-2.jpg", p.rich.16s, width = 5, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-2.pdf", p.rich.16s, width = 5, height = 4, units = "in", dpi = 600)
 
 #### .---Fig: Div (ITS) ####
 p.rich.ITS <- plot_richness(ps.ITS.nocontrols.rare, measures = "Shannon", x = "FunGroup", color = "FunGroup") + 
@@ -478,7 +489,7 @@ p.rich.ITS <- plot_richness(ps.ITS.nocontrols.rare, measures = "Shannon", x = "F
   scale_color_manual(values = c("magenta4", "#1F968BFF", "goldenrod3")) +
   labs(y = "Shannon Diversity")
 
-ggsave("Figures/Final/Fig-S2.jpg", p.rich.ITS, width = 7, height = 4, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S2.pdf", p.rich.ITS, width = 7, height = 4, units = "in", dpi = 600)
 
 #### DESeq (16S) ####
 ps.16s.nocontrols.fam <- tax_glom(ps.16s.nocontrols, taxrank = "Family", NArm = FALSE )
@@ -616,7 +627,7 @@ for(i in contrasts) {
   res.alpha.tax$Family = factor(as.character(res.alpha.tax$Family), levels=names(x))
 
   
-   p <- ggplot(res.alpha.tax, aes(x = Family, y = log2FoldChange)) + 
+   p <- ggplot(res.alpha.tax[res.alpha.tax$Family %in% fam.new,], aes(x = Family, y = log2FoldChange)) + 
     geom_point(size = 3) +
     theme_bw() +
     theme(
@@ -639,7 +650,7 @@ for(i in contrasts) {
 
 d.plot <- plot.list$G.F + plot.list$FG.F + plot.FG.G
 
-#ggsave("Figures/Final/Fig-S3a.jpg", d.plot, width = 11, height = 4, dpi = 600)
+ggsave("Figures/Final/Fig-S3a-talk.jpg", d.plot, width = 11, height = 4, dpi = 600)
 
 ###
 # Extract normalized data
@@ -663,6 +674,7 @@ norm.countl$norm.counts <- as.numeric(as.character(norm.countl$norm.counts))
 
 # merge with grass data
 norm.count.16s <- rbind(norm.countl, norm.countlg)
+norm.count.16s <- unique(norm.count.16s)
 
 #### DESeq (ITS) ####
 ps.its.nocontrols.fam <- tax_glom(ps.ITS.nocontrols, taxrank = "Family", NArm = FALSE )
@@ -839,7 +851,7 @@ for(i in contrasts) {
 
 des.p.its <- plot.list$G.F + plot.list$FG.F + plot.FG.G
 
-ggsave("Figures/Final/Fig-S3b.jpg", des.p.its, width = 9, height = 4, dpi = 600)
+#ggsave("Figures/Final/Fig-S3b.pdf", des.p.its, width = 9, height = 4, dpi = 600)
 
 ###
 # Extract Normalized abundances
@@ -861,19 +873,19 @@ norm.countl$norm.counts <- as.numeric(as.character(norm.countl$norm.counts))
 norm.count.its <- rbind(norm.countl, norm.countlg)
 
 #### .---Fig: DESeq (16S - Main) ####
-fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Veillonellaceae", "Clostridiaceae_1", "Rhodocyclaceae")
+fam2 <- sort(c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Veillonellaceae", "Clostridiaceae_1", "Rhodocyclaceae"))
 fig.norm <- merge(norm.count.16s, mapping[,c(1,35)], by.x = "Sample", by.y = "SampleID_Fix")
 fig.norm <- filter(fig.norm, Family %in% fam2)
 fig.norm$FunGroup <- recode(fig.norm$FunGroup, grass_x_forb = "Competition")
 #fig.norm.sum <- summarySE(fig.norm, groupvars = c("Family", "FunGroup"), measurevar = "norm.counts")
 fig.norm.sum <- ddply(fig.norm, .(Family, FunGroup), summarize, norm.counts = max(norm.counts))
 
-fig.norm.sum$cld <- c("a", "b", "a",
-                      "a", "b", "b",
-                      "a", "b", "b",
-                      "a", "b", "b",
-                      "a", "b", "a",
-                      "a", "b", "b")
+fig.norm.sum$cld <- c("a", "b", "a", # burkholderiaceae
+                      "a", "b", "b", # Clostridiaceae
+                      "a", "b", "b", # fibrobacteraceae
+                      "a", "b", "b", # methylophilaceae
+                      "a", "b", "a", # rhodocyclaceae
+                      "a", "b", "b") # veillonellaceae
 plotlist = list()
 
 for(i in fam2) {
@@ -882,7 +894,7 @@ for(i in fam2) {
     # geom_errorbar(aes(ymin = norm.counts - se, ymax = norm.counts + se), width = 0.2, position = position_dodge(1), col = "black") +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Relative Abundance") +
+    labs(title = i, y = "Normalized Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -903,7 +915,7 @@ for(i in fam2) {
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
 
 ggsave("Figures/Final/Fig-3b.jpg", p, width = 8, height = 5, units = "in", dpi = 600)
 
@@ -940,7 +952,7 @@ for(i in unique(fig.norm$Family)) {
     # geom_errorbar(aes(ymin = norm.counts - se, ymax = norm.counts + se), width = 0.2, position = position_dodge(1), col = "black") +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Relative Abundance") +
+    labs(title = i, y = "Normalized Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -961,9 +973,9 @@ for(i in unique(fig.norm$Family)) {
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
 
-ggsave("Figures/Final/Fig-S4.jpg", p, width = 7, height = 9, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S4.pdf", p, width = 7, height = 9, units = "in", dpi = 600)
 
 #### .---Fig: DESeq (ITS) ####
 fig.norm <- merge(norm.count.its, mapping[,c(1,35)], by.x = "Sample", by.y = "SampleID_Fix")
@@ -984,7 +996,7 @@ for(i in unique(fig.norm$Family)) {
   p <- ggplot(fig.norm[fig.norm$Family == i,], aes(x = FunGroup, y = norm.counts, col = FunGroup, group = FunGroup)) +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(size = 0.7) +
-    labs(title = i, y = "Relative Abundance") +
+    labs(title = i, y = "Normalized Abundance") +
     theme_bw() +
     theme(
       legend.position = "none",
@@ -1006,14 +1018,14 @@ for(i in unique(fig.norm$Family)) {
 }
 
 
-p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Relative Abundance", rot = 90, vjust = 1)))
+p <- grid.arrange(arrangeGrob(grobs = plotlist, ncol = 3, left = textGrob("Normalized Abundance", rot = 90, vjust = 1)))
 
-ggsave("Figures/Final/Fig-S5.jpg", p, width = 8, height = 2.5, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S5.pdf", p, width = 8, height = 2.5, units = "in", dpi = 600)
 
 
 #### SourceTracker (16S) ####
 asv.fam <- data.frame(ASV = row.names(df.16s.tax), Family = df.16s.tax$Family)
-asv.fam <- filter(asv.fam, asv.fam$Family %in% c("Methylophilaceae", "Clostridiaceae_1", "Fibrobacteraceae", "Burkholderiaceae"))
+asv.fam <- filter(asv.fam, asv.fam$Family %in% c("Methylophilaceae", "Fibrobacteraceae", "Burkholderiaceae", "Veillonellaceae", "Rhodocyclaceae", "Clostridiaceae_1"))
 
 ST_bg_16S <- read.delim("Data/16S/SourceTracker/sink_predictions_Background_soil_contributions.txt")
 ST_bg_16S$Source <- "Background"
@@ -1037,6 +1049,8 @@ ST_16S2 <- merge(ST_16S2, test, by = "Family")
 ST_16S2$rel.prob <- ST_16S2$source.prob/ST_16S2$sum.prob
 
 ####.---Fig: SourceTracker (16S - M) ####
+ST_16S2$Family <- factor(ST_16S2$Family, levels = c("Burkholderiaceae", "Clostridiaceae_1", "Fibrobacteraceae", "Methylophilaceae", "Rhodocyclaceae", "Veillonellaceae"))
+
 p.st <- ggplot(ST_16S2, aes(y = rel.prob, x = Family, col = Source, fill = Source)) +
   geom_bar(position="stack", stat="identity", col = "black") + 
   theme_bw() +
@@ -1056,15 +1070,16 @@ ggsave("Figures/Final/Fig-4.jpg", p.st, width = 5, height = 2, dpi = 600, units 
 
 #### .---Fig: SourceTracker (16S - S) ####
 asv.fam <- data.frame(ASV = row.names(df.16s.tax), Family = df.16s.tax$Family)
-fam4 <- c(as.character(fam3), "Rhodocyclaceae", "Veillonellaceae")
-asv.fam <- filter(asv.fam, asv.fam$Family %in% fam4)
+#fam4 <- sort(c(as.character(fam3), "Rhodocyclaceae", "Veillonellaceae", "Clostridiaceae_1"))
+asv.fam <- filter(asv.fam, asv.fam$Family %in% fam3)
 
 ST_16S3 <- merge(ST_16S, asv.fam, by = "ASV", all.x = F)
 test <- ddply(ST_16S3, .(Family), summarize, sum.prob = sum(prob))
 ST_16S3 <- ddply(ST_16S3, .(Family, Source), summarize, source.prob = sum(prob))
 ST_16S3 <- merge(ST_16S3, test, by = "Family")
 ST_16S3$rel.prob <- ST_16S3$source.prob/ST_16S3$sum.prob
-
+#ST_16S3$Family <- factor(ST_16S3$Family, levels = c("Veillonellaceae", "Flavobacteriaceae", "Rhodocyclaceae", "Rubritaleaceae", "Weeksellaceae", "Geodermatophilaceae", "Propionibacteriaceae", "Streptomycetaceae", "Nitrospiraceae", "Azospirillaceae", "Beijerinckiaceae", "Microbacteriaceae", "Steroidobacteraceae", "Acetobacteraceae", "Cyclobacteriaceae"))
+  
 p.st <- ggplot(ST_16S3, aes(y = rel.prob, x = Family, col = Source, fill = Source)) +
   geom_bar(position="stack", stat="identity", col = "black") + 
   theme_bw() +
@@ -1081,6 +1096,11 @@ p.st <- ggplot(ST_16S3, aes(y = rel.prob, x = Family, col = Source, fill = Sourc
   coord_flip()
   
 ggsave("Figures/Final/Fig-S6.jpg", p.st, width = 6, height = 4, dpi = 600, units = "in")
+
+ST_16S <- rbind(ST_16S2, ST_16S3)
+ST_16S <- filter(ST_16S, Source != "Background", Source != "Unknown")
+ST_16S <- pivot_wider(ST_16S[,c(1,2,5)], names_from = "Source", values_from = "rel.prob")
+ST_16S$dom.source <- ifelse(ST_16S$Forb > ST_16S$Grass, "forb", "grass")
 
 #### SourceTracker (ITS) ####
 fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
@@ -1130,27 +1150,34 @@ p.st <- ggplot(ST_its, aes(y = rel.prob, x = Family, col = Source, fill = Source
   labs(y = "Proportion of ASVs") +
   coord_flip()
   
-ggsave("Figures/Final/Fig-S7.jpg", p.st, width = 5, height = 1.5, dpi = 600, units = "in")
+ggsave("Figures/Final/Fig-S7.pdf", p.st, width = 5, height = 1.5, dpi = 600, units = "in")
 
 #### Log Response Ratio ####
 #mapping$FunGroup <- as.factor(mapping$FunGroup)
 
 # Log response ratio
+  
 map.comp <- mapping %>%
   filter(Competion == "TwoSpecies") %>%
   pivot_longer(c(grass, forb), names_to = "FunGroup2", values_to = "Species")
 
 biomass <- mapping %>%
   filter(Competion == "SingleSpecies") %>%
+  filter(TreatRep != "LA3") %>%
   dplyr::group_by(PlantSpeciesSampled) %>%
   dplyr::summarise(avg.wt = mean(Weight.g, na.rm = T)) %>%
   dplyr::rename(Species = PlantSpeciesSampled) %>%
   left_join(map.comp, by = "Species") %>%
   filter(Competion == "TwoSpecies")
 
+biomass$Competitor <- ifelse(biomass$FunGroup2 == "forb", 
+                             substr(biomass$Treatment, start = 1, stop = 2),
+                             substr(biomass$Treatment, start = 3, stop = 4))
+
 biomass$weight.d <- ifelse(biomass$FunGroup2 == "forb", log(biomass$forb.wt/biomass$avg.wt), log(biomass$grass.wt/biomass$avg.wt))
 
-m.bio <- lmer(weight.d ~ FunGroup2 + (1|Treatment), biomass)
+
+m.bio <- lmer(LRR ~ FunGroup2 + (1|Treatment) + (1|Treatment:Species), biomass)
 plot(fitted(m.bio), resid(m.bio))
 qqnorm(resid(m.bio))
 qqline(resid(m.bio))
@@ -1171,33 +1198,7 @@ bio.plot <- ggplot(biomass.lrr.sum, aes(y = weight.d, x = FunGroup2, fill = FunG
   labs(y = "Log Response Ratio") +
   scale_fill_manual(values = c("magenta4", "#1F968BFF"))
 
-ggsave("Figures/Final/Fig-5.jpg", bio.plot, width = 5, height = 4, units = "in", dpi = 600)
-
-#### .---Fig: LRR Spp ####
-biomass.sum <- summarySE(biomass, measurevar =  "weight.d", groupvars = c("Treatment", "FunGroup2"), na.rm = T)
-
-biomass.sum <- biomass.sum %>% 
-         group_by(Treatment) %>%
-         mutate(slope = (weight.d[FunGroup2=="grass"] - weight.d[FunGroup2=="forb"])/(2-1))
-
-
-bio.spp.plot <- ggplot(biomass.sum, aes(x = FunGroup2, y = weight.d, group = 1)) + 
-  #geom_line(aes(col = slope)) +
-  geom_line() +
-  geom_point() +
-  geom_errorbar(aes(ymin = weight.d - se, ymax = weight.d + se), width = 0.02) +
-  theme_bw(base_size = 15) +
-  facet_wrap(~Treatment, ncol = 6) +
-  #scale_color_gradient2(low = "red",  high = "blue") +
-  theme(
-    axis.text.y = element_text(size = 8),
-    axis.text.x = element_text(size = 10),
-    axis.title.x = element_blank(),
-    legend.position = "none"
-  ) +
-  labs(y = "Log Response Ratio")
-
-ggsave("Figures/Final/Fig-S12.jpg", bio.spp.plot, width = 6, height = 4, units = "in", dpi = 600)
+#ggsave("Figures/Final/Fig-5.pdf", bio.plot, width = 5, height = 4, units = "in", dpi = 600)
 
 #### LRR v NA (16S) ####
 lrr.fam.df <- psmelt(ps.16s.nocontrols.fam)
@@ -1262,14 +1263,22 @@ fam2 <- c("Burkholderiaceae", "Methylophilaceae", "Fibrobacteraceae", "Veillonel
 Species <- unique(biomass$Species)
 group <- c("grass", "forb")
 fam.16s <- c(fam2, as.character(fam3))
-lrr.16s.m <- expand.grid(Family = fam.16s, FunGroup2 = group, est = NA, se = NA, p = NA)
+lrr.16s.m <- expand.grid(Family = fam.16s, FunGroup2 = group, est = NA, se = NA, p = NA, r2c = NA, r2m = NA)
 
 for(i in fam.16s) {
   for(j in group){
-  tmp <- lmer(weight.d ~ norm.counts + (1|Treatment), data = lrr.fam.16s[lrr.fam.16s$Family == i & lrr.fam.16s$FunGroup2 == j,])
-  lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
-    lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
-      lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "p"] <- summary(tmp)[["coefficients"]][2,5]
+  tmp <- lmer(weight.d ~ norm.counts + (1|Species) + (1|Treatment), data = lrr.fam.16s[lrr.fam.16s$Family == i & lrr.fam.16s$FunGroup2 == j,])
+ 
+   lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "est"] <- summary(tmp)[["coefficients"]][2,1]
+  
+  lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "se"] <- summary(tmp)[["coefficients"]][2,2]
+    
+  lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "p"] <- summary(tmp)[["coefficients"]][2,5]
+       
+  lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "r2c"] <- as.numeric(performance::r2(tmp)$R2_conditional)
+  
+  lrr.16s.m[lrr.16s.m$Family == i & lrr.16s.m$FunGroup2 == j, "r2m"] <- as.numeric(performance::r2(tmp)$R2_marginal)
+      
   }
 }
 
@@ -1277,6 +1286,7 @@ lrr.16s.m$lines <- ifelse(lrr.16s.m$p < 0.05, "dashed", "solid") # this should g
 
 
 #### Models: LRR v NA (ITS) ####
+fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
 
 group <- c("grass", "forb")
 lrr.ITS.m <- expand.grid(Family = fam.ITS, FunGroup2 = group, est = NA, se = NA, p = NA)
@@ -1316,7 +1326,7 @@ for(i in fam2) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF"))
 
   plotlist[[i]] <- p
@@ -1340,7 +1350,7 @@ p2 <- grid.arrange(arrangeGrob(grobs = plotlist,
                    widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
                    nrow=1)
 
-ggsave("Figures/Final/Fig-6.jpg", p2, width = 6, height = 5, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-6.pdf", p2, width = 6, height = 5, units = "in", dpi = 600)
 
 #### .---Fig: LRR v NA (16S - S) ####
 plotlist = list()
@@ -1359,7 +1369,7 @@ for(i in fam4) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF"))
   
   plotlist[[i]] <- p
@@ -1383,11 +1393,10 @@ p2 <- grid.arrange(arrangeGrob(grobs = plotlist,
                    widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
                    nrow=1)
 
-ggsave("Figures/Final/Fig-S8.jpg", p2, width = 7, height = 9, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S8.pdf", p2, width = 7, height = 9, units = "in", dpi = 600)
 
 
 #### .---Fig: LRR v NA (ITS) ####
-fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
 
 plotlist = list()
 
@@ -1404,7 +1413,7 @@ for(i in fam.ITS) {
     axis.title = element_text(size = 9),
     axis.text = element_text(size = 8)
   ) +
-  labs(title = i, x = "Relative Abundance", y = "Log Response Ratio") +
+  labs(title = i, x = "Normalized Abundance", y = "Log Response Ratio") +
   scale_color_manual(values = c("magenta4", "#1F968BFF")) +
   scale_x_continuous(
   labels = scales::number_format(accuracy = 1,
@@ -1431,5 +1440,379 @@ p2 <- grid.arrange(arrangeGrob(grobs = plotlist,
                    widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
                    nrow=1)
 
-ggsave("Figures/Final/Fig-S9.jpg", p2, width = 7, height = 2, units = "in", dpi = 600)
+ggsave("Figures/Final/Fig-S9.pdf", p2, width = 7, height = 2, units = "in", dpi = 600)
 
+
+#### REVISIONS ####
+
+#### Number of bacterial families ####
+bac.fam <- unique(df.16s.tax$Family) # 303 unique families
+fun.fam <- unique(df.ITS.tax$Family) # 232 unique families
+
+nrow(df.16s.tax[df.16s.tax$Family == "Unknown_Family",])/nrow(df.16s.tax)
+nrow(df.ITS.tax[df.ITS.tax$Family == "Unclassified",])/nrow(df.ITS.tax)
+
+#### Sample numbers ####
+GL_Alpha <- filter(GL_Alpha, SampleSubType == "Rhizosphere_soil")
+
+nrow(GL_Alpha[GL_Alpha$FunGroup == "Grass",])
+nrow(GL_Alpha[GL_Alpha$FunGroup == "Forb",])
+nrow(GL_Alpha[GL_Alpha$FunGroup == "grass_x_forb",])
+
+#### Forb LRR vs Grass biomass ####
+a <- ggplot(biomass[biomass$FunGroup2 != "forb",], aes(x = forb.wt, y = weight.d)) +
+  theme_classic() +
+  geom_smooth(method = "lm", linetype = "dashed") +
+  geom_point() +
+  theme(
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 12)
+  ) +
+  labs(x = "Forb weight (g)", y = "Grass Biomass Log Response Ratio")
+
+m.lb <- lmer(weight.d ~ forb.wt + (1|Species), biomass[biomass$FunGroup2 != "forb",])
+plot(fitted(m.lb), resid(m.lb))
+qqnorm(resid(m.lb))
+qqline(resid(m.lb))
+summary(m.lb)
+
+#### Grass LRR vs Forb biomass ####
+b <- ggplot(biomass[biomass$FunGroup2 != "grass",], aes(x = grass.wt, y = weight.d)) +
+  theme_classic() +
+  geom_smooth(method = "lm", linetype = "dashed") +
+  geom_point() +
+  theme(
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 12)
+  ) +
+  labs(x = "Grass weight (g)", y = "Forb Biomass Log Response Ratio")
+
+m.lb2 <- lmer(weight.d ~ grass.wt + (1|Species), biomass[biomass$FunGroup2 != "grass",])
+plot(fitted(m.lb2), resid(m.lb2))
+qqnorm(resid(m.lb2))
+qqline(resid(m.lb2))
+summary(m.lb2)
+
+# ggsave("Figures/Final/Revisions/bio-lrr-g.jpg", a, width = 6, height = 5, units = "in", dpi = 600)
+# ggsave("Figures/Final/Revisions/bio-lrr-f.jpg", b, width = 6, height = 5, units = "in", dpi = 600)
+
+#### Grass wt vs forb wt ####
+m.wt <- lmer(log(forb.wt) ~ log(grass.wt) + (1|Species), biomass[biomass$FunGroup2 != "grass" & biomass$Competion == "TwoSpecies",])
+plot(fitted(m.wt), resid(m.wt))
+qqnorm(resid(m.wt))
+qqline(resid(m.wt))
+summary(m.wt)
+
+c <- ggplot(biomass[biomass$FunGroup2 != "grass" & biomass$Competion == "TwoSpecies",], aes(x = grass.wt, y = forb.wt)) +
+  geom_smooth(method = "lm", linetype = "dashed") +
+  geom_point() +
+  labs(x = "Grass Biomass (g)", y = "Forb Biomass (g)") +
+  theme_classic() + 
+  theme(
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 12)
+  ) 
+
+ggsave("Figures/Final/Revisions/bio-corr.jpg", c, width = 6, height = 5, units = "in", dpi = 600)
+
+#### FunGroup Dominance ####
+mb3 <- lmer(log(Weight.g) ~ FunGroup + (1|PlantSpeciesSampled), mapping[mapping$Competion == "SingleSpecies" & mapping$PlantSpeciesSampled != "none",])
+plot(fitted(mb3), resid(mb3))
+qqnorm(resid(mb3))
+qqline(resid(mb3))
+summary(mb3)
+
+biomass$Weight.g <- ifelse(biomass$FunGroup2 == "grass", biomass$grass.wt, biomass$forb.wt)
+mb4 <- lmer(log(Weight.g) ~ FunGroup2 + (1|PlantSpeciesSampled), biomass[biomass$Competion == "TwoSpecies" & biomass$PlantSpeciesSampled != "none",])
+mb4.1 <- lmer(log(Weight.g) ~ FunGroup2 + (1|PlantSpeciesSampled) + (1|TreatRep), biomass[biomass$Competion == "TwoSpecies" & biomass$PlantSpeciesSampled != "none",])
+anova(mb4, mb4.1)
+
+plot(fitted(mb4), resid(mb4))
+qqnorm(resid(mb4))
+qqline(resid(mb4))
+summary(mb4)
+
+### Graphs
+bio.sum <- summarySE(mapping[mapping$Competion == "SingleSpecies" & mapping$PlantSpeciesSampled != "none",], measurevar = "Weight.g", groupvars = "FunGroup", na.rm = T)
+
+a <- ggplot(bio.sum[complete.cases(bio.sum),], aes(y = Weight.g, x = FunGroup, fill = FunGroup)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = Weight.g - se, ymax = Weight.g + se, width = 0.2)) +
+  xlab("biomass (g)") +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(size = 13)#,
+    #axis.title.y = element_text(size = 13)
+  ) +
+  ylim(0,0.19) +
+  scale_fill_manual(values = c("magenta4", "#1F968BFF"))
+
+bio.sum2 <- summarySE(biomass[biomass$Competion == "TwoSpecies" & biomass$PlantSpeciesSampled != "none",], measurevar = "Weight.g", groupvars = "FunGroup2", na.rm = T)
+
+b <- ggplot(bio.sum2, aes(y = Weight.g, x = FunGroup2, fill = FunGroup2)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = Weight.g - se, ymax = Weight.g + se, width = 0.2)) +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(size = 13)
+  ) +
+  ylim(0,0.19) +
+  scale_fill_manual(values = c("magenta4", "#1F968BFF"))
+
+p2 <- grid.arrange(arrangeGrob(grobs = list(a,b), 
+                               ncol = 2, 
+                               left = textGrob("biomass (g)", 
+                                               rot = 90, 
+                                               vjust = 1), size = 13), 
+                   nrow = 1)
+
+#ggsave("Figures/Final/Fig-talk.jpg", p2, width = 8, height = 4, dpi = 600)
+
+#### Models: P Biomass v NA (16s) ####
+bio.16s <- merge(norm.count.16s, mapping[mapping$Competion == "TwoSpecies",], by.x = "Sample", by.y = "SampleID_Fix")
+
+# GRASSES
+
+bio.16s.g <- expand.grid(Family = fam.16s, est = NA, se = NA, p = NA, r2.c = NA, r2.m = NA)
+
+for(i in fam.16s) { 
+  tmp <- lmer(log(grass.wt) ~ norm.counts + (1|grass), data = bio.16s[bio.16s$Family == i,])
+  bio.16s.g[bio.16s.g$Family == i, "est"] <- summary(tmp)[["coefficients"]][2,1]
+  bio.16s.g[bio.16s.g$Family == i, "se"] <- summary(tmp)[["coefficients"]][2,2]
+  bio.16s.g[bio.16s.g$Family == i, "p"] <- summary(tmp)[["coefficients"]][2,5]
+  bio.16s.g[bio.16s.g$Family == i, "r2.m"] <- r.squaredGLMM(tmp)[1]
+  bio.16s.g[bio.16s.g$Family == i, "r2.c"]  <- r.squaredGLMM(tmp)[2]
+}
+
+bio.16s.g$lines <- ifelse(bio.16s.g$p < 0.05, "dashed", "solid") 
+bio.16s.g <- merge(bio.16s[,-c(4:28,30,32,34)], bio.16s.g, by = c("Family"))
+bio.16s.g$FunGroup <- "grass"
+colnames(bio.16s.g)[4] <- "Species"
+colnames(bio.16s.g)[6] <- "Weight.g"
+
+# Forbs
+
+bio.16s.f <- expand.grid(Family = fam.16s, est = NA, se = NA, p = NA, r2.c = NA, r2.m = NA)
+
+for(i in fam.16s) { 
+  tmp <- lmer(log(forb.wt) ~ norm.counts + (1|forb), data = bio.16s[bio.16s$Family == i,])
+  bio.16s.f[bio.16s.f$Family == i, "est"] <- summary(tmp)[["coefficients"]][2,1]
+  bio.16s.f[bio.16s.f$Family == i, "se"] <- summary(tmp)[["coefficients"]][2,2]
+  bio.16s.f[bio.16s.f$Family == i, "p"] <- summary(tmp)[["coefficients"]][2,5]
+  bio.16s.f[bio.16s.f$Family == i, "r2.m"] <- r.squaredGLMM(tmp)[1]
+  bio.16s.f[bio.16s.f$Family == i, "r2.c"]  <- r.squaredGLMM(tmp)[2]
+}
+
+bio.16s.f$lines <- ifelse(bio.16s.f$p < 0.05, "dashed", "solid")
+
+bio.16s.f <- merge(bio.16s[,-c(4:28,33,34)], bio.16s.f, by = c("Family"))
+bio.16s.f$FunGroup <- "forb"
+bio.16s.f <- bio.16s.f[,-4]
+colnames(bio.16s.f)[4] <- "Species"
+colnames(bio.16s.f)[6] <- "Weight.g"
+
+bio.16s.fg <- rbind(bio.16s.f, bio.16s.g)
+
+####.---Fig: Bio v NA (16S) - M ####
+fam.m <- sort(c("Methylophilaceae", "Burkholderiaceae", "Fibrobacteraceae", "Clostridiaceae_1", "Veillonellaceae", "Rhodocyclaceae"))
+
+plotlist = list()
+
+for(i in fam.m) {
+  p <- ggplot(bio.16s.fg[bio.16s.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup, linetype = FunGroup)) + 
+  geom_smooth(data = bio.16s.fg[bio.16s.fg$Family == i & bio.16s.fg$p < 0.10,], method = "lm", formula = y ~ x, aes(linetype = lines)) +
+  geom_point(size = .6) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.text = element_text(size = 6)
+  ) +
+    labs(title = i, x = "Normalized Abundance", y = "Log Biomass (g)") +
+  scale_color_manual(values = c("magenta4", "#1F968BFF"))
+
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.16s.fg[bio.16s.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  ) +
+  scale_color_manual(values = c("magenta4", "#1F968BFF"))
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 3, 
+                               left = textGrob("log biomass in pairs (g)", 
+                                               rot = 90, 
+                                               vjust = 1), 
+                               bottom = textGrob("normalized abundance in pairs", hjust = 0.5)),  
+                   legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
+                   nrow = 1)
+
+
+ggsave("Figures/Final/Revisions/Fig-S14.jpg", p2, width = 7, height = 4, units = "in", dpi = 600)
+
+####.---Fig: Bio v NA (16S) - S ####
+plotlist = list()
+
+for(i in sort(fam.16s[!fam.16s %in% fam.m])) {
+  p <- ggplot(bio.16s.fg[bio.16s.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup, linetype = FunGroup)) + 
+  geom_smooth(data = bio.16s.fg[bio.16s.fg$Family == i & bio.16s.fg$p < 0.10,], method = "lm", formula = y ~ x, aes(linetype = lines)) +
+  geom_point(size = .8) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  ) +
+    labs(title = i, x = "Normalized Abundance", y = "Log Biomass (g)") +
+  scale_color_manual(values = c("magenta4", "#1F968BFF"))
+
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.16s.fg[bio.16s.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()
+  ) +
+  scale_color_manual(values = c("magenta4", "#1F968BFF"))
+    ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 3, 
+                               left = textGrob("log biomass (g)", 
+                                               rot = 90, 
+                                               vjust = 1)),  
+                   legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width), 
+                   nrow=1)
+
+ggsave("Figures/Final/Revisions/Fig-S8.jpg", p2, width = 7, height = 9, units = "in", dpi = 600)
+
+#### Models: P Biomass v NA (ITS) ####
+bio.its <- merge(norm.count.its, mapping[mapping$Competion == "TwoSpecies",], by.x = "Sample", by.y = "SampleID_Fix")
+
+# GRASSES
+fam.ITS <- c("Tubeufiaceae", "Ceratobasidiaceae", "Unclassified Sebacinales")
+bio.its.g <- expand.grid(Family = fam.ITS, est = NA, se = NA, p = NA, r2.c = NA, r2.m = NA)
+
+for(i in fam.ITS) { 
+  tmp <- lmer(log(grass.wt) ~ norm.counts + (1|grass), data = bio.its[bio.its$Family == i,])
+  bio.its.g[bio.its.g$Family == i, "est"] <- summary(tmp)[["coefficients"]][2,1]
+  bio.its.g[bio.its.g$Family == i, "se"] <- summary(tmp)[["coefficients"]][2,2]
+  bio.its.g[bio.its.g$Family == i, "p"] <- summary(tmp)[["coefficients"]][2,5]
+  bio.its.g[bio.its.g$Family == i, "r2.m"] <- r.squaredGLMM(tmp)[1]
+  bio.its.g[bio.its.g$Family == i, "r2.c"]  <- r.squaredGLMM(tmp)[2]
+}
+
+bio.its.g$lines <- ifelse(bio.its.g$p < 0.05, "dashed", "solid") 
+bio.its.g <- merge(bio.its[,-c(4:28,30,32,34)], bio.its.g, by = c("Family"))
+bio.its.g$FunGroup <- "grass"
+colnames(bio.its.g)[4] <- "Species"
+colnames(bio.its.g)[6] <- "Weight.g"
+
+# Forbs
+
+bio.its.f <- expand.grid(Family = fam.ITS, est = NA, se = NA, p = NA, r2.c = NA, r2.m = NA)
+
+for(i in fam.ITS) { 
+  tmp <- lmer(log(forb.wt) ~ norm.counts + (1|forb), data = bio.its[bio.its$Family == i,])
+  bio.its.f[bio.its.f$Family == i, "est"] <- summary(tmp)[["coefficients"]][2,1]
+  bio.its.f[bio.its.f$Family == i, "se"] <- summary(tmp)[["coefficients"]][2,2]
+  bio.its.f[bio.its.f$Family == i, "p"] <- summary(tmp)[["coefficients"]][2,5]
+  bio.its.f[bio.its.f$Family == i, "r2.m"] <- r.squaredGLMM(tmp)[1]
+  bio.its.f[bio.its.f$Family == i, "r2.c"]  <- r.squaredGLMM(tmp)[2]
+}
+
+bio.its.f$lines <- ifelse(bio.its.f$p < 0.05, "dashed", "solid")
+
+bio.its.f <- merge(bio.its[,-c(4:28,33,34)], bio.its.f, by = c("Family"))
+bio.its.f$FunGroup <- "forb"
+bio.its.f <- bio.its.f[,-4]
+colnames(bio.its.f)[4] <- "Species"
+colnames(bio.its.f)[6] <- "Weight.g"
+
+bio.its.fg <- rbind(bio.its.f, bio.its.g)
+
+####.---Fig: Bio v NA (ITS) ####
+
+plotlist = list()
+
+for(i in fam.ITS) {
+  p <- ggplot(bio.its.fg[bio.its.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup, linetype = FunGroup)) + 
+  geom_smooth(data = bio.its.fg[bio.its.fg$Family == i & bio.its.fg$p < 0.10,], method = "lm", formula = y ~ x, aes(linetype = lines)) +
+  geom_point(size = .8) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    legend.position = "none",
+    axis.title.y = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  ) +
+  labs(title = i, x = "Normalized Abundance", y = "Log Biomass (g)") +
+  scale_color_manual(values = c("magenta4", "#1F968BFF"))
+
+  plotlist[[i]] <- p
+}
+
+legend <- gtable_filter(ggplotGrob(
+  ggplot(bio.its.fg[bio.its.fg$Family == i,], aes(x = norm.counts, y = log(Weight.g), col = FunGroup, group = FunGroup)) +
+  geom_point(size = .8) +
+  theme(
+    legend.title = element_blank()) 
+   +
+   scale_color_manual(values = c("magenta4", "#1F968BFF"))
+     ), "guide-box") 
+
+p2 <- grid.arrange(arrangeGrob(grobs = plotlist, 
+                               ncol = 3, 
+                              left = textGrob("Log Biomass (g)", 
+                                              rot = 90, 
+                                              vjust = 1)), 
+                  legend, 
+                   widths = unit.c(unit(1, "npc") - legend$width, legend$width),
+                   nrow=1)
+
+ggsave("Figures/Final/Revisions/Fig-S9.jpg", p2, width = 7, height = 2, units = "in", dpi = 600)
+
+
+
+#### Relative Abundance ####
+ps.16s.nocontrols.rare <- subset_samples(ps.16s.nocontrols.rare, !(is.na(Competion)))
+
+df_ASV <- psmelt(ps.16s.nocontrols.rare)
+
+grouped_ASV2 <- ddply(df_ASV, .(Family, Sample), summarize, RA = sum(Abundance)/9434)
+
+se <- function(x) sqrt(var(x)/length(x))
+avgs_ASV2 <- ddply(grouped_ASV2, .(Family), summarize, Abundance = mean(RA)*100, sd = sd(RA)*100) # RA of all families (over fungroups)
+
+Table3 <- avgs_ASV2[avgs_ASV2$Family %in% fam.16s,]
+
+## ITS
+ps.ITS.nocontrols.rare <- subset_samples(ps.ITS.nocontrols.rare, !(is.na(Competion)))
+df_ASV.its <- psmelt(ps.ITS.nocontrols.rare)
+
+grouped_ASV.its2 <- ddply(df_ASV.its, .(Order, Family, Sample), summarize, RA = sum(Abundance)/7557)
+
+# se <- function(x) sqrt(var(x)/length(x))
+avgs_ASV.its2 <- ddply(grouped_ASV.its2, .(Order, Family), summarize, Abundance = mean(RA)*100, se = se(RA)*100) # RA of all families (over fungroups)
+
+Table3 <- avgs_ASV.its2[avgs_ASV.its2$Family %in% c(f_Ceratobasidiaceae, f_ubeufiaceae, f_),]
